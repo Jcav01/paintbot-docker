@@ -1,0 +1,22 @@
+{
+  "name": "discord",
+  "version": "1.0.0",
+  "description": "",
+  "main": "discord.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jcav01/paintbot-docker/discord"
+  },
+  "author": "Jcav",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.46.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.12.1"
+  }
+}

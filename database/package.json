@@ -1,0 +1,22 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "description": "",
+  "main": "database.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jcav01/paintbot-docker/database"
+  },
+  "author": "Jcav",
+  "license": "ISC",
+  "dependencies": {
+    "pg": "^8.11.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.46.0"
+  }
+}

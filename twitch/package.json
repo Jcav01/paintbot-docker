@@ -1,0 +1,24 @@
+{
+  "name": "twitch",
+  "version": "1.0.0",
+  "description": "Handles subscribing to Twitch EventSub",
+  "main": "twitch.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jcav01/paintbot-docker/twitch"
+  },
+  "author": "Jcav",
+  "license": "ISC",
+  "dependencies": {
+    "@twurple/api": "^7.0.1",
+    "@twurple/auth": "^7.0.1",
+    "@twurple/eventsub-http": "^7.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.46.0"
+  }
+}

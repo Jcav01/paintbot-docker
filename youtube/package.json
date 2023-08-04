@@ -1,0 +1,22 @@
+{
+  "name": "youtube",
+  "version": "1.0.0",
+  "description": "",
+  "main": "youtube.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jcav01/paintbot-docker/youtube"
+  },
+  "author": "Jcav",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.46.0"
+  }
+}
