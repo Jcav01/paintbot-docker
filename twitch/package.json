@@ -16,7 +16,8 @@
   "dependencies": {
     "@twurple/api": "^7.0.1",
     "@twurple/auth": "^7.0.1",
-    "@twurple/eventsub-http": "^7.0.1"
+    "@twurple/eventsub-http": "^7.0.1",
+    "@twurple/eventsub-ngrok": "^7.0.1"
   },
   "devDependencies": {
     "eslint": "^8.46.0"

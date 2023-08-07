@@ -2,12 +2,12 @@ services:
   twitch:
     build: twitch
     ports:
-      - 8080:80
+      - 3001:3000
     secrets:
       - twitch-client-id
       - twitch-client-secret
 secrets:
   twitch-client-id:
-    file: twitch/twitch-client-id.txt
+    file: twitch/secrets/twitch-client-id.txt
   twitch-client-secret:
-    file: twitch/twitch-client-secret.txt
+    file: twitch/secrets/twitch-client-secret.txt
