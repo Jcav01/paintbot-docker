@@ -2,10 +2,10 @@
 	"extends": "eslint:recommended",
 	"env": {
 		"node": true,
-		"es6": true
+		"es2023": true
 	},
 	"parserOptions": {
-		"ecmaVersion": 2021,
+		"ecmaVersion": 14,
 		"sourceType": "module"
 	},
 	"rules": {

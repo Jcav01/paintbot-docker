@@ -131,3 +131,5 @@ dist
 
 # Secret files
 secrets/
+discord/src/config.json
+deploy-commands/

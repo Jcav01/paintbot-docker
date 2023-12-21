@@ -4,6 +4,12 @@ import { DirectConnectionAdapter, EventSubHttpListener } from '@twurple/eventsub
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import * as fs from 'fs';
 
+const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets.json', function(err) {
+	if (err) {
+		throw err;
+	}
+}));
+
 const twitchListener = await startListener();
 const onlineSubscription = twitchListener.onStreamOnline(484202258, e => {
 	console.log(`${e.broadcasterDisplayName} just went live!`);
@@ -17,8 +23,7 @@ async function startListener() {
 }
 
 async function buildListener() {
-	const { clientId, clientSecret } = await readSecrets();
-	const authProvider = new AppTokenAuthProvider(clientId, clientSecret);
+	const authProvider = new AppTokenAuthProvider(secrets.clientId, secrets.clientSecret);
 	const apiClient = new ApiClient({ authProvider });
 
 	const env = process.env.NODE_ENV || 'development';
@@ -46,20 +51,4 @@ async function buildListener() {
 			secret: '70579801-ad5c-4552-a1d2-23253272ecb0',
 		});
 	}
-}
-
-async function readSecrets() {
-	let clientId = '';
-	let clientSecret = '';
-	clientId = fs.readFileSync('/run/secrets/twitch-client-id', function(err) {
-		if (err) {
-			throw err;
-		}
-	}).toString();
-	clientSecret = fs.readFileSync('/run/secrets/twitch-client-secret', function(err) {
-		if (err) {
-			throw err;
-		}
-	}).toString();
-	return { clientId, clientSecret };
 }

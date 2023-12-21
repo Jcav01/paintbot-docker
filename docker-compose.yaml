@@ -2,12 +2,17 @@ services:
   twitch:
     build: twitch
     ports:
-      - 3001:3000
+      - 8000:3000
     secrets:
-      - twitch-client-id
-      - twitch-client-secret
+      - twitch-secrets.json
+  discord:
+    build: discord
+    ports:
+      - 8001
+    secrets:
+      - discord-secrets.json
 secrets:
-  twitch-client-id:
-    file: twitch/secrets/twitch-client-id.txt
-  twitch-client-secret:
-    file: twitch/secrets/twitch-client-secret.txt
+  twitch-secrets.json:
+    file: twitch/secrets/twitch-secrets.json
+  discord-secrets.json:
+    file: discord/secrets/discord-secrets.json
