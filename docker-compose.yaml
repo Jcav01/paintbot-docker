@@ -5,6 +5,8 @@ services:
       - 8000:3000
     secrets:
       - twitch-secrets.json
+    env_file:
+      - twitch/secrets/.env
   discord:
     build: discord
     ports:

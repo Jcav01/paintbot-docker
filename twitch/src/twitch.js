@@ -4,17 +4,20 @@ import { DirectConnectionAdapter, EventSubHttpListener } from '@twurple/eventsub
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import * as fs from 'fs';
 
+// Load the secrets from the secrets file
 const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets.json', function(err) {
 	if (err) {
 		throw err;
 	}
 }));
 
+
 const twitchListener = await startListener();
 const onlineSubscription = twitchListener.onStreamOnline(484202258, e => {
 	console.log(`${e.broadcasterDisplayName} just went live!`);
 });
 console.log(await onlineSubscription.getCliTestCommand());
+
 
 async function startListener() {
 	const listener = await buildListener();
@@ -32,10 +35,13 @@ async function buildListener() {
 	case 'development':
 		// This is necessary to prevent conflict errors resulting from ngrok assigning a new host name every time
 		await apiClient.eventSub.deleteAllSubscriptions();
-
 		return new EventSubHttpListener({
 			apiClient,
-			adapter: new NgrokAdapter(),
+			adapter: new NgrokAdapter({
+				ngrokConfig: {
+					authtoken_from_env: true,
+				},
+			}),
 			secret: '70579801-ad5c-4552-a1d2-23253272ecb0',
 		});
 	case 'production':
