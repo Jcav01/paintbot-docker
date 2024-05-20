@@ -43,7 +43,7 @@ async function buildListener() {
 					domain: 'weasel-ideal-evenly.ngrok-free.app',
 				},
 			}),
-			secret: '70579801-ad5c-4552-a1d2-23253272ecb0',
+			secret: secrets.eventSubSecret,
 		});
 	case 'production':
 		return new EventSubHttpListener({
@@ -55,7 +55,7 @@ async function buildListener() {
 					cert: 'bbbbbbbbbbbbbbb',
 				},
 			}),
-			secret: '70579801-ad5c-4552-a1d2-23253272ecb0',
+			secret: secrets.eventSubSecret,
 		});
 	}
 }
