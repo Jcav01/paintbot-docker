@@ -17,6 +17,7 @@
     "eslint": "^8.46.0"
   },
   "dependencies": {
-    "discord.js": "^14.12.1"
+    "discord.js": "^14.12.1",
+    "express": "^4.19.2"
   }
 }

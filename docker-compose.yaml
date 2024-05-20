@@ -7,12 +7,19 @@ services:
       - twitch-secrets.json
     env_file:
       - twitch/secrets/.env
+    networks:
+      - paintbot
   discord:
     build: discord
     ports:
       - 8001
     secrets:
       - discord-secrets.json
+    networks:
+      - paintbot
+networks:
+  paintbot:
+    driver: bridge
 secrets:
   twitch-secrets.json:
     file: twitch/secrets/twitch-secrets.json
