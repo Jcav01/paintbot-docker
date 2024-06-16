@@ -80,7 +80,7 @@ async function handleStreamOnline(broadcasterId) {
 	const post_data = JSON.stringify({
 		channelId: '598322322310430732',
 		embed: {
-			title: channel.title,
+			title: channel.title || 'Untitled Broadcast',
 			url: `https://www.twitch.tv/${user.name}`,
 			thumbnail: {
 				url: gameBoxArtUrl,
