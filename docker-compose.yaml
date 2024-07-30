@@ -1,5 +1,7 @@
 services:
   twitch:
+    depends_on:
+      - database
     build: twitch
     ports:
       - 8000:3000
@@ -17,6 +19,15 @@ services:
       - discord-secrets.json
     networks:
       - paintbot
+  database:
+    build: database
+    secrets:
+      - paintbot-3e5d5b0e2fe3.json
+      - database-secrets.json
+    ports:
+      - 8002
+    networks:
+      - paintbot
 networks:
   paintbot:
     driver: bridge
@@ -25,3 +36,7 @@ secrets:
     file: twitch/secrets/twitch-secrets.json
   discord-secrets.json:
     file: discord/secrets/discord-secrets.json
+  paintbot-3e5d5b0e2fe3.json:
+    file: database/secrets/paintbot-3e5d5b0e2fe3.json
+  database-secrets.json:
+    file: database/secrets/database-secrets.json
