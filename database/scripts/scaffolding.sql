@@ -2,6 +2,8 @@
 
 CREATE SCHEMA public AUTHORIZATION pg_database_owner;
 
+COMMENT ON SCHEMA public IS 'standard public schema';
+
 -- DROP SEQUENCE public.destinations_destination_id_seq;
 
 CREATE SEQUENCE public.destinations_destination_id_seq
@@ -46,7 +48,9 @@ CREATE TABLE public.sources (
 	channel_id text NOT NULL,
 	is_online bool NULL,
 	notification_source varchar NOT NULL,
+	source_url varchar NOT NULL,
 	CONSTRAINT sources_pk PRIMARY KEY (channel_id),
+	CONSTRAINT sources_unique UNIQUE (source_url),
 	CONSTRAINT sources_notification_sources_fk FOREIGN KEY (notification_source) REFERENCES public.notification_sources(notification_source)
 );
 
@@ -60,10 +64,10 @@ CREATE TABLE public.sources (
 CREATE TABLE public.destinations (
 	destination_id serial4 NOT NULL,
 	channel_id text NOT NULL,
-	highlight_colour int4 DEFAULT 9520895 NULL,
 	last_message_id text NULL,
 	source_id text NOT NULL,
 	minimum_interval int2 DEFAULT 15 NOT NULL,
+	highlight_colour bytea DEFAULT '\x393134364646'::bytea NOT NULL,
 	CONSTRAINT destinations_pk PRIMARY KEY (destination_id),
 	CONSTRAINT destinations_un UNIQUE (channel_id, source_id),
 	CONSTRAINT destinations_fk FOREIGN KEY (source_id) REFERENCES public.sources(channel_id)
