@@ -13,12 +13,17 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Twitch channel.')
+						.setDescription('The URL of the Twitch channel. (Example: https://www.twitch.tv/jcav)')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
 						.setName('delay')
-						.setDescription('The minimum delay (in minutes) between a stream going offline and the next notifcation.')
+						.setDescription('The minimum delay in minutes between a stream going offline and the next notifcation. Default is 15.')
+						.setRequired(false))
+				.addNumberOption(option =>
+					option
+						.setName('highlight')
+						.setDescription('RGB hex code for the colour on the left of the embed. Default is 9146FF.')
 						.setRequired(false)))
 		.addSubcommand(subcommand =>
 			subcommand
