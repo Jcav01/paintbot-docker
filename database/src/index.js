@@ -24,9 +24,15 @@ app.get('/notifications/history/:source', async (req, res) => {
 	res.json(result.rows);
 });
 
-app.get('/destinations/:source', async (req, res) => {
-	console.log('Received request to get sources for:', req.params.source);
+app.get('/destinations/source/:source', async (req, res) => {
+	console.log('Received request to get destinations for:', req.params.source);
 	const result = await db.query('SELECT * FROM destinations WHERE source_id = $1', [req.params.source]);
+	res.json(result.rows);
+});
+
+app.get('/destinations/channel/:channel', async (req, res) => {
+	console.log('Received request to get destinations for:', req.params.channel);
+	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.channel_id WHERE destinations.channel_id = $1', [req.params.channel]);
 	res.json(result.rows);
 });
 

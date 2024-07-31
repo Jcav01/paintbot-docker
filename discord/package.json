@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "discord.js": "^14.12.1",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "text-table": "^0.2.0"
   }
 }
