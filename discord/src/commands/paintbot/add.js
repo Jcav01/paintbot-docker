@@ -17,8 +17,8 @@ module.exports = {
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
-						.setName('delay')
-						.setDescription('The minimum delay in minutes between a stream going offline and the next notifcation. Default is 15.')
+						.setName('interval')
+						.setDescription('The minimum interval (in minutes) between notifications. Default is 15.')
 						.setRequired(false))
 				.addNumberOption(option =>
 					option
@@ -28,13 +28,28 @@ module.exports = {
 		.addSubcommand(subcommand =>
 			subcommand
 				.setName('youtube')
-				.setDescription('Adds a Youtube channel notification to this channel.')),
+				.setDescription('Adds a Youtube channel notification to this channel.')
+				.addStringOption(option =>
+					option
+						.setName('channel')
+						.setDescription('The URL of the Youtube channel. (Example: https://www.youtube.com/@ConeDodger240)')
+						.setRequired(true))
+				.addNumberOption(option =>
+					option
+						.setName('interval')
+						.setDescription('The minimum interval (in minutes) between notifications. Default is 15.')
+						.setRequired(false))
+				.addNumberOption(option =>
+					option
+						.setName('highlight')
+						.setDescription('RGB hex code for the colour on the left of the embed. Default is CD201F.')
+						.setRequired(false))),
 	async execute(interaction) {
 		if (interaction.options.getSubcommand() === 'twitch') {
 			await interaction.reply({ content: `Adding Twitch notification for ${interaction.options.getString('channel')}.`, ephemeral: true });
 		}
 		else if (interaction.options.getSubcommand() === 'youtube') {
-			await interaction.reply({ content: 'Adding Youtube notification.', ephemeral: true });
+			await interaction.reply({ content: `Adding Youtube notification for ${interaction.options.getString('channel')}.`, ephemeral: true });
 		}
 		else {
 			await interaction.reply({ content: 'Unknown subcommand.', ephemeral: true });
