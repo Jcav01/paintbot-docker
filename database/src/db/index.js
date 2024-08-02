@@ -22,6 +22,7 @@ const pool = new Pool({
 	database: secrets.databaseName,
 	max: 5,
 });
+
 export const query = async (text, params) => {
 	const res = await pool.query(text, params);
 	return res;

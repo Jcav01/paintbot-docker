@@ -5,16 +5,33 @@ const app = express();
 app.use(express.json());
 
 // Get list of notification types for a specific notification source
-app.get('/notifications/types/:notificationSource', async (req, res) => {
-	console.log('Received request to get notification types for source:', req.params.notificationSource);
-	const result = await db.query('SELECT * FROM notification_types WHERE notification_source = $1', [req.params.notificationSource]);
-	res.json(result.rows);
+app.get('', async (req, res) => {
+	res.sendStatus(200);
 });
 
 // Get a list of sources for a specific notification source
 app.get('/sources/:notificationSource', async (req, res) => {
 	console.log('Received request to get sources for:', req.params.notificationSource);
 	const result = await db.query('SELECT * FROM sources WHERE notification_source = $1', [req.params.notificationSource]);
+	res.json(result.rows);
+});
+
+app.route('/source/:source')
+	.get(async (req, res) => {
+		console.log('Received request to get source ID:', req.params.source);
+		const result = await db.query('SELECT * FROM sources WHERE source_id = $1', [req.params.channel]);
+		res.json(result.rows);
+	})
+	.put(async (req, res) => {
+		console.log('Received request to set is_online for', req.params.source, 'to', req.query.isOnline);
+		await db.query('UPDATE sources SET is_online = $2 WHERE source_id = $1', [req.params.source, req.query.isOnline]);
+		res.send();
+	});
+
+// Get list of notification types for a specific notification source
+app.get('/notifications/types/:notificationSource', async (req, res) => {
+	console.log('Received request to get notification types for source:', req.params.notificationSource);
+	const result = await db.query('SELECT * FROM notification_types WHERE notification_source = $1', [req.params.notificationSource]);
 	res.json(result.rows);
 });
 
@@ -32,7 +49,7 @@ app.get('/destinations/source/:source', async (req, res) => {
 
 app.get('/destinations/channel/:channel', async (req, res) => {
 	console.log('Received request to get destinations for:', req.params.channel);
-	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.channel_id WHERE destinations.channel_id = $1', [req.params.channel]);
+	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.source_id WHERE destinations.channel_id = $1', [req.params.channel]);
 	res.json(result.rows);
 });
 
