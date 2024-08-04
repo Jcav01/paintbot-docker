@@ -92,7 +92,7 @@ async function handleStreamOnline(broadcasterId) {
 	}
 
 	// Create an object to POST to the Discord webhook
-	const post_data = JSON.stringify({
+	const embed_data = JSON.stringify({
 		channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour };}),
 		embed: {
 			title: channel.title || 'Untitled Broadcast',
@@ -119,37 +119,36 @@ async function handleStreamOnline(broadcasterId) {
 	});
 
 	// An object of options to indicate where to post to
-	const post_options = {
+	const embed_options = {
 		host: 'discord',
 		port: '8001',
 		path: '/embed/send',
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			'Content-Length': Buffer.byteLength(post_data),
+			'Content-Length': Buffer.byteLength(embed_data),
 		},
 	};
-	const post_req = http.request(post_options, (res) => {
-		res.on('data', function(chunk) {
-			console.log('Response: ' + chunk);
-		});
-	});
-	post_req.write(post_data);
-	post_req.end();
+	const embed_req = http.request(embed_options);
+	embed_req.write(embed_data);
+	embed_req.end();
 
-	const put_options = {
+	const online_options = {
 		host: 'database',
 		port: '8002',
 		path: `/source/${broadcasterId}?isOnline=true`,
 		method: 'PUT',
 	};
-	const put_req = http.request(put_options);
+	const online_req = http.request(online_options);
 	try {
-		put_req.end();
+		online_req.end();
 	}
 	catch (error) {
 		console.error(error);
 	}
+
+	// Add a row to the notification history
+	addHistory(broadcasterId, 'stream.online');
 }
 
 async function handleStreamOffline(broadcasterId) {
@@ -168,10 +167,12 @@ async function handleStreamOffline(broadcasterId) {
 	catch (error) {
 		console.error(error);
 	}
+
+	addHistory(broadcasterId, 'stream.offline');
 }
 
 async function handleChannelUpdate(broadcasterId) {
-	console.log(`Stream online: ${broadcasterId}`);
+	console.log(`Channel updated: ${broadcasterId}`);
 	const user = await apiClient.users.getUserById(broadcasterId);
 	const channel = await apiClient.channels.getChannelInfoById(broadcasterId);
 
@@ -227,15 +228,13 @@ async function handleChannelUpdate(broadcasterId) {
 	};
 
 	// Set up the request
-	const post_req = http.request(post_options, (res) => {
-		res.on('data', function(chunk) {
-			console.log('Response: ' + chunk);
-		});
-	});
+	const post_req = http.request(post_options);
 
 	// Post the data
 	post_req.write(post_data);
 	post_req.end();
+
+	addHistory(broadcasterId, 'channel.update');
 }
 
 function waitfordb(url, interval = 1500, attempts = 10) {
@@ -268,6 +267,26 @@ function waitfordb(url, interval = 1500, attempts = 10) {
 
 		reject(new Error(`Database is down: ${count} attempts tried`));
 	});
+}
+
+function addHistory(sourceId, notificationType) {
+	const history_data = JSON.stringify({
+		sourceId: sourceId,
+		notificationType: notificationType,
+	});
+	const history_options = {
+		host: 'database',
+		port: '8002',
+		path: '/notifications/history',
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Content-Length': Buffer.byteLength(history_data),
+		},
+	};
+	const history_req = http.request(history_options);
+	history_req.write(history_data);
+	history_req.end();
 }
 
 function addEvents(sourceId) {

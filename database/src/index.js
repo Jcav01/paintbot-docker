@@ -41,6 +41,12 @@ app.get('/notifications/history/:source', async (req, res) => {
 	res.json(result.rows);
 });
 
+app.post('/notifications/history', async (req, res) => {
+	console.log('Received request to add record to notification history');
+	const result = await db.query('INSERT INTO public.past_notifications (source_id, notification_type) VALUES($1, $2);', [req.body.sourceId, req.body.notificationType]);
+	res.json(result.rows);
+});
+
 app.get('/destinations/source/:source', async (req, res) => {
 	console.log('Received request to get destinations for:', req.params.source);
 	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.source_id WHERE destinations.source_id = $1', [req.params.source]);
