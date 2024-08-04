@@ -18,7 +18,7 @@ const apiClient = new ApiClient({ authProvider });
 try {
 	const url = 'http://database:8002';
 	await waitfordb(url);
-	console.log(`Server is up: ${url}`);
+	console.log(`Database is up: ${url}`);
 }
 catch (err) {
 	console.log(err.message);
@@ -75,6 +75,11 @@ async function handleStreamOnline(broadcasterId) {
 	const user = await apiClient.users.getUserById(broadcasterId);
 	const channel = await apiClient.channels.getChannelInfoById(broadcasterId);
 
+	// Get the list of destinations to post to
+	const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
+	const destinations = await destinationRes.json();
+	console.table(destinations);
+
 	// Set default values for the game box art and game name
 	let gameBoxArtUrl = 'https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg';
 	let gameName = 'N/A';
@@ -88,14 +93,13 @@ async function handleStreamOnline(broadcasterId) {
 
 	// Create an object to POST to the Discord webhook
 	const post_data = JSON.stringify({
-		channelId: '598322322310430732',
+		channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour };}),
 		embed: {
 			title: channel.title || 'Untitled Broadcast',
 			url: `https://www.twitch.tv/${user.name}`,
 			thumbnail: {
 				url: gameBoxArtUrl,
 			},
-			color: 0x0099FF,
 			author: {
 				name: user.displayName,
 				iconUrl: user.profilePictureUrl,
@@ -258,11 +262,11 @@ function waitfordb(url, interval = 1500, attempts = 10) {
 			}
 			catch {
 				count++;
-				console.log(`Still down, trying ${count} of ${attempts}`);
+				console.log(`Database still down, trying ${count} of ${attempts}`);
 			}
 		}
 
-		reject(new Error(`Server is down: ${count} attempts tried`));
+		reject(new Error(`Database is down: ${count} attempts tried`));
 	});
 }
 

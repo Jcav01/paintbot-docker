@@ -43,7 +43,7 @@ app.get('/notifications/history/:source', async (req, res) => {
 
 app.get('/destinations/source/:source', async (req, res) => {
 	console.log('Received request to get destinations for:', req.params.source);
-	const result = await db.query('SELECT * FROM destinations WHERE source_id = $1', [req.params.source]);
+	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.source_id WHERE destinations.source_id = $1', [req.params.source]);
 	res.json(result.rows);
 });
 
