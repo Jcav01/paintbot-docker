@@ -72,50 +72,16 @@ async function buildListener() {
 
 async function handleStreamOnline(broadcasterId) {
 	console.log(`Stream online: ${broadcasterId}`);
-	const user = await apiClient.users.getUserById(broadcasterId);
-	const channel = await apiClient.channels.getChannelInfoById(broadcasterId);
 
 	// Get the list of destinations to post to
 	const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
 	const destinations = await destinationRes.json();
 	console.table(destinations);
 
-	// Set default values for the game box art and game name
-	let gameBoxArtUrl = 'https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg';
-	let gameName = 'N/A';
-
-	// If the channel has a category/game set, get the game information, and update the game box art and game name
-	if (channel && channel.gameId) {
-		const game = await apiClient.games.getGameById(channel.gameId);
-		gameBoxArtUrl = game ? game.getBoxArtUrl(500, 700) : gameBoxArtUrl;
-		gameName = game ? game.name : gameName;
-	}
-
 	// Create an object to POST to the Discord webhook
 	const embed_data = JSON.stringify({
 		channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour };}),
-		embed: {
-			title: channel.title || 'Untitled Broadcast',
-			url: `https://www.twitch.tv/${user.name}`,
-			thumbnail: {
-				url: gameBoxArtUrl,
-			},
-			author: {
-				name: user.displayName,
-				iconUrl: user.profilePictureUrl,
-				url: `https://www.twitch.tv/${user.name}`,
-			},
-			fields: [
-				{
-					name: 'Game',
-					value: gameName,
-				},
-			],
-			image: {
-				// Appending the date is a hack to force Discord to re-fetch the image every time
-				url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${user.name}-1280x720.png?r=${Math.floor(new Date().getTime() / 1000)}`,
-			},
-		},
+		embed: await formatEmbed(broadcasterId),
 	});
 
 	// An object of options to indicate where to post to
@@ -172,69 +138,54 @@ async function handleStreamOffline(broadcasterId) {
 }
 
 async function handleChannelUpdate(broadcasterId) {
-	console.log(`Channel updated: ${broadcasterId}`);
-	const user = await apiClient.users.getUserById(broadcasterId);
-	const channel = await apiClient.channels.getChannelInfoById(broadcasterId);
+	console.log(`Twitch channel updated: ${broadcasterId}`);
 
-	// Set default values for the game box art and game name
-	let gameBoxArtUrl = 'https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg';
-	let gameName = 'N/A';
+	// Get the last notification for the source
+	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${broadcasterId}`);
+	const lastNotif = await lastNotifRes.json();
+	console.table(lastNotif);
 
-	// If the channel has a category/game set, get the game information, and update the game box art and game name
-	if (channel && channel.gameId) {
-		const game = await apiClient.games.getGameById(channel.gameId);
-		gameBoxArtUrl = game ? game.getBoxArtUrl(500, 700) : gameBoxArtUrl;
-		gameName = game ? game.name : gameName;
+	if (lastNotif[0].notification_type === 'stream.online') {
+		// Get the list of destinations to post to
+		const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
+		const destinations = await destinationRes.json();
+		console.table(destinations);
+
+		// Create an object to POST to the Discord webhook
+		const embed_data = JSON.stringify({
+			channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour };}),
+			embed: await formatEmbed(broadcasterId),
+		});
+
+		// An object of options to indicate where to post to
+		const embed_options = {
+			host: 'discord',
+			port: '8001',
+			path: '/embed/edit',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(embed_data),
+			},
+		};
+		const embed_req = http.request(embed_options);
+		embed_req.write(embed_data);
+		embed_req.end();
+
+		const online_options = {
+			host: 'database',
+			port: '8002',
+			path: `/source/${broadcasterId}?isOnline=true`,
+			method: 'PUT',
+		};
+		const online_req = http.request(online_options);
+		try {
+			online_req.end();
+		}
+		catch (error) {
+			console.error(error);
+		}
 	}
-
-	// Create an object to POST to the Discord webhook
-	const post_data = JSON.stringify({
-		channelId: '598322322310430732',
-		embed: {
-			title: channel.title || 'Untitled Broadcast',
-			url: `https://www.twitch.tv/${user.name}`,
-			thumbnail: {
-				url: gameBoxArtUrl,
-			},
-			color: 0x0099FF,
-			author: {
-				name: user.displayName,
-				iconUrl: user.profilePictureUrl,
-				url: `https://www.twitch.tv/${user.name}`,
-			},
-			fields: [
-				{
-					name: 'Game',
-					value: gameName,
-				},
-			],
-			image: {
-				// Appending the date is a hack to force Discord to re-fetch the image every time
-				url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${user.name}-1280x720.png?r=${Math.floor(new Date().getTime() / 1000)}`,
-			},
-		},
-	});
-
-	// An object of options to indicate where to post to
-	const post_options = {
-		host: 'discord',
-		port: '8001',
-		path: '/embed/send',
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Content-Length': Buffer.byteLength(post_data),
-		},
-	};
-
-	// Set up the request
-	const post_req = http.request(post_options);
-
-	// Post the data
-	post_req.write(post_data);
-	post_req.end();
-
-	addHistory(broadcasterId, 'channel.update');
 }
 
 function waitfordb(url, interval = 1500, attempts = 10) {
@@ -295,8 +246,47 @@ function addEvents(sourceId) {
 	twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId));
 }
 
-async function removeEvents(sourceId) {
-	const allSubs = await apiClient.eventSub.getSubscriptions();
-	const subs = allSubs.data.filter(sub => sub.condition.broadcaster_user_id === sourceId);
-	subs.forEach(sub => apiClient.eventSub.deleteSubscription(sub.id));
+async function formatEmbed(broadcasterId) {
+	const user = await apiClient.users.getUserById(broadcasterId);
+	const channel = await apiClient.channels.getChannelInfoById(broadcasterId);
+
+	// Set default values for the game box art and game name
+	let gameBoxArtUrl = 'https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg';
+	let gameName = 'N/A';
+
+	// If the channel has a category/game set, get the game information, and update the game box art and game name
+	if (channel && channel.gameId) {
+		const game = await apiClient.games.getGameById(channel.gameId);
+		gameBoxArtUrl = game ? game.getBoxArtUrl(500, 700) : gameBoxArtUrl;
+		gameName = game ? game.name : gameName;
+	}
+	return {
+		title: channel.title || 'Untitled Broadcast',
+		url: `https://www.twitch.tv/${user.name}`,
+		thumbnail: {
+			url: gameBoxArtUrl,
+		},
+		author: {
+			name: user.displayName,
+			iconUrl: user.profilePictureUrl,
+			url: `https://www.twitch.tv/${user.name}`,
+		},
+		fields: [
+			{
+				name: 'Game',
+				value: gameName,
+			},
+		],
+		image: {
+		// Appending the date is a hack to force Discord to re-fetch the image every time
+		// Divided by 1000 to get seconds, reducing the number of characters in the URL
+			url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${user.name}-1280x720.png?r=${Math.floor(new Date().getTime() / 1000)}`,
+		},
+	};
 }
+
+// async function removeEvents(sourceId) {
+// 	const allSubs = await apiClient.eventSub.getSubscriptions();
+// 	const subs = allSubs.data.filter(sub => sub.condition.broadcaster_user_id === sourceId);
+// 	subs.forEach(sub => apiClient.eventSub.deleteSubscription(sub.id));
+// }

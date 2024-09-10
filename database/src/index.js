@@ -36,8 +36,8 @@ app.get('/notifications/types/:notificationSource', async (req, res) => {
 });
 
 app.get('/notifications/history/:source', async (req, res) => {
-	console.log('Received request to get notification history for:', req.params.source);
-	const result = await db.query('SELECT * FROM past_notifications WHERE source_id = $1', [req.params.source]);
+	console.log('Received request to get last notification for:', req.params.source);
+	const result = await db.query('SELECT * FROM past_notifications WHERE source_id = $1 ORDER BY received_date DESC LIMIT 1', [req.params.source]);
 	res.json(result.rows);
 });
 

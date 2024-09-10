@@ -72,9 +72,10 @@ client.login(secrets.token);
 
 // Handle requests from other services to post notifications
 app.post('/embed/send', (req, res) => {
+	console.log(JSON.stringify(req.body.embed));
 	req.body.channelInfo.forEach(info => {
 		const channel = client.channels.cache.get(info.channelId);
-		const exampleEmbed = new EmbedBuilder()
+		const embed = new EmbedBuilder()
 			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
 			.setTitle(req.body.embed.title)
 			.setURL(req.body.embed.url)
@@ -84,7 +85,28 @@ app.post('/embed/send', (req, res) => {
 			.setImage(req.body.embed.image.url);
 
 		// console.log(JSON.stringify(exampleEmbed));
-		channel.send({ embeds: [exampleEmbed] });
+		channel.send({ embeds: [embed] });
+	});
+    res.send();
+});
+
+// Handle requests from other services to post notifications
+app.post('/embed/edit', (req, res) => {
+	req.body.channelInfo.forEach(info => {
+		const channel = client.channels.cache.get(info.channelId);
+		const message = channel.messages.fetch(info.messageId)
+			.catch(console.error);
+		const embed = new EmbedBuilder()
+			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
+			.setTitle(req.body.embed.title)
+			.setURL(req.body.embed.url)
+			.setAuthor({ name: req.body.embed.author.name, iconURL: req.body.embed.author.iconUrl, url: req.body.embed.author.url })
+			.setThumbnail(req.body.embed.thumbnail.url)
+			.addFields(req.body.embed.fields)
+			.setImage(req.body.embed.image.url);
+
+		// console.log(JSON.stringify(exampleEmbed));
+		message.edit({ embeds: [embed] });
 	});
     res.send();
 });
