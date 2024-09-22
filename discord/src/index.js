@@ -71,9 +71,10 @@ client.on(Events.InteractionCreate, async interaction => {
 client.login(secrets.token);
 
 // Handle requests from other services to post notifications
-app.post('/embed/send', (req, res) => {
+app.post('/embed/send', async (req, res) => {
 	console.log(JSON.stringify(req.body.embed));
-	req.body.channelInfo.forEach(info => {
+	const messages = [];
+	for (const info of req.body.channelInfo) {
 		const channel = client.channels.cache.get(info.channelId);
 		const embed = new EmbedBuilder()
 			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
@@ -84,10 +85,11 @@ app.post('/embed/send', (req, res) => {
 			.addFields(req.body.embed.fields)
 			.setImage(req.body.embed.image.url);
 
-		// console.log(JSON.stringify(exampleEmbed));
-		channel.send({ embeds: [embed] });
-	});
-    res.send();
+		const message = await channel.send({ embeds: [embed] });
+		messages.push({ messageId: message.id, channelId: info.channelId });
+	}
+
+	res.send(messages);
 });
 
 // Handle requests from other services to post notifications
@@ -105,7 +107,6 @@ app.post('/embed/edit', (req, res) => {
 			.addFields(req.body.embed.fields)
 			.setImage(req.body.embed.image.url);
 
-		// console.log(JSON.stringify(exampleEmbed));
 		message.edit({ embeds: [embed] });
 	});
     res.send();

@@ -43,7 +43,7 @@ app.get('/notifications/history/:source', async (req, res) => {
 
 app.post('/notifications/history', async (req, res) => {
 	console.log('Received request to add record to notification history');
-	const result = await db.query('INSERT INTO public.past_notifications (source_id, notification_type) VALUES($1, $2);', [req.body.sourceId, req.body.notificationType]);
+	const result = await db.query('INSERT INTO past_notifications (source_id, notification_type) VALUES($1, $2)', [req.body.sourceId, req.body.notificationType]);
 	res.json(result.rows);
 });
 
@@ -56,6 +56,12 @@ app.get('/destinations/source/:source', async (req, res) => {
 app.get('/destinations/channel/:channel', async (req, res) => {
 	console.log('Received request to get destinations for:', req.params.channel);
 	const result = await db.query('SELECT * FROM destinations INNER JOIN sources ON destinations.source_id = sources.source_id WHERE destinations.channel_id = $1', [req.params.channel]);
+	res.json(result.rows);
+});
+
+app.put('/destinations/:destination/:source', async (req, res) => {
+	console.log('Received request to update last message for destination:', req.params.destination);
+	const result = await db.query('UPDATE destinations SET last_message_id = $1 WHERE channel_id = $2 AND source_id = $3', [req.body.messageId, req.params.destination, req.params.source]);
 	res.json(result.rows);
 });
 

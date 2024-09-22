@@ -95,7 +95,42 @@ async function handleStreamOnline(broadcasterId) {
 			'Content-Length': Buffer.byteLength(embed_data),
 		},
 	};
-	const embed_req = http.request(embed_options);
+
+	const embed_req = http.request(embed_options, (res) => {
+		let data = '';
+
+		// A chunk of data has been received.
+		res.on('data', (chunk) => {
+			data += chunk;
+		});
+
+		// The whole response has been received.
+		res.on('end', () => {
+			const result = JSON.parse(data);
+			result.forEach(element => {
+				const lastMessage_data = JSON.stringify({ messageId: element.messageId });
+				const lastMessage_options = {
+					host: 'database',
+					port: '8002',
+					path: `/destinations/${element.channelId}/${broadcasterId}`,
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+						'Content-Length': Buffer.byteLength(lastMessage_data),
+					},
+				};
+				const lastMessage_req = http.request(lastMessage_options);
+				lastMessage_req.write(lastMessage_data);
+				try {
+					lastMessage_req.end();
+				}
+				catch (error) {
+					console.error(error);
+				}
+			});
+		});
+	});
+
 	embed_req.write(embed_data);
 	embed_req.end();
 
