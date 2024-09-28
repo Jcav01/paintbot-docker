@@ -24,9 +24,9 @@ catch (err) {
 	console.log(err.message);
 }
 
-// Get the list of destinations from the database
-const sourceRes = await fetch('http://database:8002/sources/twitch');
-const sources = await sourceRes.json();
+// Get the list of sources from the database
+const sourcesRes = await fetch('http://database:8002/sources/twitch');
+const sources = await sourcesRes.json();
 console.table(sources);
 
 const twitchListener = await startListener();
@@ -73,10 +73,36 @@ async function buildListener() {
 async function handleStreamOnline(broadcasterId) {
 	console.log(`Stream online: ${broadcasterId}`);
 
+	// Get the source to check if they're online
+	const sourceRes = await fetch(`http://database:8002/source/${broadcasterId}`);
+	const source = await sourceRes.json();
+	console.table(source);
+
+	// If stream is already online, don't do anything
+	if (source[0].is_online) {
+		return;
+	}
+
 	// Get the list of destinations to post to
 	const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
 	const destinations = await destinationRes.json();
 	console.table(destinations);
+
+	// Get the last offline notification for the source
+	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${broadcasterId}/stream.offline`);
+	const lastNotif = await lastNotifRes.json();
+	console.table(lastNotif);
+
+	// If the last offline notification was within the minumum interval of a destination, remove the destination from the list
+	const now = new Date().getTime();
+	destinations.forEach(destination => {
+		if (lastNotif[0] && new Date(lastNotif[0].received_date).getTime() + (destination.minimum_interval * 60000) > now) {
+			const index = destinations.indexOf(destination);
+			if (index > -1) {
+				destinations.splice(index, 1);
+			}
+		}
+	});
 
 	// Create an object to POST to the Discord webhook
 	const embed_data = JSON.stringify({
@@ -154,6 +180,16 @@ async function handleStreamOnline(broadcasterId) {
 
 async function handleStreamOffline(broadcasterId) {
 	console.log(`Stream offline: ${broadcasterId}`);
+
+	// Get the source to check if they're online
+	const sourceRes = await fetch(`http://database:8002/source/${broadcasterId}`);
+	const source = await sourceRes.json();
+	console.table(source);
+
+	// If stream is already offline, don't do anything to avoid bobble protection extending longer than necessary
+	if (!source[0].is_online) {
+		return;
+	}
 
 	const put_options = {
 		host: 'database',

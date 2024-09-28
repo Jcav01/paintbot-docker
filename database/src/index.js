@@ -19,7 +19,7 @@ app.get('/sources/:notificationSource', async (req, res) => {
 app.route('/source/:source')
 	.get(async (req, res) => {
 		console.log('Received request to get source ID:', req.params.source);
-		const result = await db.query('SELECT * FROM sources WHERE source_id = $1', [req.params.channel]);
+		const result = await db.query('SELECT * FROM sources WHERE source_id = $1', [req.params.source]);
 		res.json(result.rows);
 	})
 	.put(async (req, res) => {
@@ -38,6 +38,12 @@ app.get('/notifications/types/:notificationSource', async (req, res) => {
 app.get('/notifications/history/:source', async (req, res) => {
 	console.log('Received request to get last notification for:', req.params.source);
 	const result = await db.query('SELECT * FROM past_notifications WHERE source_id = $1 ORDER BY received_date DESC LIMIT 1', [req.params.source]);
+	res.json(result.rows);
+});
+
+app.get('/notifications/history/:source/:type', async (req, res) => {
+	console.log('Received request to get last notification for:', req.params.source, req.params.type);
+	const result = await db.query('SELECT * FROM past_notifications WHERE source_id = $1 AND notification_type = $2 ORDER BY received_date DESC LIMIT 1', [req.params.source, req.params.type]);
 	res.json(result.rows);
 });
 
