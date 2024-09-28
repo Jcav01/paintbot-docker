@@ -93,16 +93,20 @@ async function handleStreamOnline(broadcasterId) {
 	const lastNotif = await lastNotifRes.json();
 	console.table(lastNotif);
 
-	// If the last offline notification was within the minumum interval of a destination, remove the destination from the list
-	const now = new Date().getTime();
-	destinations.forEach(destination => {
-		if (lastNotif[0] && new Date(lastNotif[0].received_date).getTime() + (destination.minimum_interval * 60000) > now) {
-			const index = destinations.indexOf(destination);
-			if (index > -1) {
-				destinations.splice(index, 1);
+	// If there was a previous offline notification, check if it was within the minimum interval of any destination
+	if (lastNotif[0]) {
+		const now = new Date().getTime();
+		const lastOffline = new Date(lastNotif[0].received_date).getTime();
+		destinations.forEach(destination => {
+			// If the last offline notification was within the minumum interval of a destination, remove the destination from the list
+			if (lastOffline + (destination.minimum_interval * 60000) > now) {
+				const index = destinations.indexOf(destination);
+				if (index > -1) {
+					destinations.splice(index, 1);
+				}
 			}
-		}
-	});
+		});
+	}
 
 	// Create an object to POST to the Discord webhook
 	const embed_data = JSON.stringify({
