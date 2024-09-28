@@ -188,7 +188,7 @@ async function handleChannelUpdate(broadcasterId) {
 
 		// Create an object to POST to the Discord webhook
 		const embed_data = JSON.stringify({
-			channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour };}),
+			channelInfo: destinations.map(function(destination) {return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, messageId: destination.last_message_id };}),
 			embed: await formatEmbed(broadcasterId),
 		});
 
@@ -221,6 +221,8 @@ async function handleChannelUpdate(broadcasterId) {
 			console.error(error);
 		}
 	}
+
+	addHistory(broadcasterId, 'channel.update');
 }
 
 function waitfordb(url, interval = 1500, attempts = 10) {

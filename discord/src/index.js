@@ -96,18 +96,21 @@ app.post('/embed/send', async (req, res) => {
 app.post('/embed/edit', (req, res) => {
 	req.body.channelInfo.forEach(info => {
 		const channel = client.channels.cache.get(info.channelId);
-		const message = channel.messages.fetch(info.messageId)
-			.catch(console.error);
-		const embed = new EmbedBuilder()
-			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
-			.setTitle(req.body.embed.title)
-			.setURL(req.body.embed.url)
-			.setAuthor({ name: req.body.embed.author.name, iconURL: req.body.embed.author.iconUrl, url: req.body.embed.author.url })
-			.setThumbnail(req.body.embed.thumbnail.url)
-			.addFields(req.body.embed.fields)
-			.setImage(req.body.embed.image.url);
+		channel.messages.fetch(info.messageId)
+			.then(message => {
+				const embed = new EmbedBuilder()
+					.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
+					.setTitle(req.body.embed.title)
+					.setURL(req.body.embed.url)
+					.setAuthor({ name: req.body.embed.author.name, iconURL: req.body.embed.author.iconUrl, url: req.body.embed.author.url })
+					.setThumbnail(req.body.embed.thumbnail.url)
+					.addFields(req.body.embed.fields)
+					.setImage(req.body.embed.image.url);
 
-		message.edit({ embeds: [embed] });
+				message.edit({ embeds: [embed] })
+					.catch(console.error);
+			})
+			.catch(console.error);
 	});
     res.send();
 });
