@@ -28,6 +28,12 @@ app.route('/source/:source')
 		res.send();
 	});
 
+app.post('/source', async (req, res) => {
+	console.log('Received request to add source:', req.body.source_id);
+	const result = await db.query('INSERT INTO sources (source_id, notification_source, source_url) VALUES($1, $2, $3) RETURNING source_id', [req.body.source_id, req.body.notification_source, req.body.source_url]);
+	res.json(result.rows);
+});
+
 // Get list of notification types for a specific notification source
 app.get('/notifications/types/:notificationSource', async (req, res) => {
 	console.log('Received request to get notification types for source:', req.params.notificationSource);
@@ -68,6 +74,12 @@ app.get('/destinations/channel/:channel', async (req, res) => {
 app.put('/destinations/:destination/:source', async (req, res) => {
 	console.log('Received request to update last message for destination:', req.params.destination);
 	const result = await db.query('UPDATE destinations SET last_message_id = $1 WHERE channel_id = $2 AND source_id = $3', [req.body.messageId, req.params.destination, req.params.source]);
+	res.json(result.rows);
+});
+
+app.post('/destination', async (req, res) => {
+	console.log('Received request to add destination:', req.body.channel_id);
+	const result = await db.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour) VALUES($1, $2, $3, $4) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour]);
 	res.json(result.rows);
 });
 

@@ -4,6 +4,73 @@ import { DirectConnectionAdapter, EventSubHttpListener } from '@twurple/eventsub
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import * as fs from 'fs';
 import * as http from 'http';
+import express from 'express';
+import * as url from 'whatwg-url';
+const app = express();
+// enable middleware to parse body of Content-type: application/json
+app.use(express.json());
+
+app.post('/add', async (req, res) => {
+	console.log('Received request to add Twitch source:', req.body);
+	await waitfordb('http://database:8002');
+
+	const username = url.parseURL(req.body.source_url).path[0];
+	apiClient.users.getUserByName(username).then(async user => {
+
+		// Check if the source already exists
+		const sourceRes = await fetch(`http://database:8002/source/${user.id}`);
+		const source = await sourceRes.json();
+		console.table(source);
+
+		if (!source[0]) {
+			const data = JSON.stringify({
+				notification_source: 'twitch',
+				source_url: req.body.source_url,
+				source_id: user.id,
+			});
+			const options = {
+				host: 'database',
+				port: '8002',
+				path: '/source',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': Buffer.byteLength(data),
+				},
+			};
+			const source_req = http.request(options);
+			source_req.write(data);
+			source_req.end();
+		}
+
+		const data = JSON.stringify({
+			channel_id: req.body.discord_channel,
+			source_id: user.id,
+			minimum_interval: req.body.interval,
+			highlight_colour: req.body.highlight,
+		});
+		const options = {
+			host: 'database',
+			port: '8002',
+			path: '/destination',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(data),
+			},
+		};
+		const source_req = http.request(options);
+		source_req.write(data);
+		source_req.end();
+
+		addEvents(user.id);
+	});
+	res.send();
+});
+app.listen(8004, () => {
+	console.log('Twitch is listening on port 8004');
+});
+
 
 // Load the secrets from the secrets file
 const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets.json', function(err) {
@@ -16,9 +83,8 @@ const authProvider = new AppTokenAuthProvider(secrets.clientId, secrets.clientSe
 const apiClient = new ApiClient({ authProvider });
 
 try {
-	const url = 'http://database:8002';
-	await waitfordb(url);
-	console.log(`Database is up: ${url}`);
+	await waitfordb('http://database:8002');
+	console.log('Database is up');
 }
 catch (err) {
 	console.log(err.message);
@@ -265,7 +331,7 @@ async function handleChannelUpdate(broadcasterId) {
 	addHistory(broadcasterId, 'channel.update');
 }
 
-function waitfordb(url, interval = 1500, attempts = 10) {
+function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 	const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 	let count = 1;
@@ -276,7 +342,7 @@ function waitfordb(url, interval = 1500, attempts = 10) {
 			await sleep(interval);
 
 			try {
-				const response = await fetch(url);
+				const response = await fetch(DBUrl);
 				if (response.ok) {
 					if (response.status === 200) {
 						resolve();

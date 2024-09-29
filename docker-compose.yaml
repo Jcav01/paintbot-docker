@@ -5,6 +5,7 @@ services:
     build: twitch
     ports:
       - 8000:3000
+      - 8004
     secrets:
       - twitch-secrets.json
     env_file:
