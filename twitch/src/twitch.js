@@ -22,6 +22,7 @@ app.post('/add', async (req, res) => {
 		const source = await sourceRes.json();
 		console.table(source);
 
+		// If not, add the source to the database
 		if (!source[0]) {
 			const data = JSON.stringify({
 				notification_source: 'twitch',
@@ -41,8 +42,12 @@ app.post('/add', async (req, res) => {
 			const source_req = http.request(options);
 			source_req.write(data);
 			source_req.end();
+
+			// Start listening for events for the new source
+			addEvents(user.id);
 		}
 
+		// Add the destination to the database
 		const data = JSON.stringify({
 			channel_id: req.body.discord_channel,
 			source_id: user.id,
@@ -62,8 +67,6 @@ app.post('/add', async (req, res) => {
 		const source_req = http.request(options);
 		source_req.write(data);
 		source_req.end();
-
-		addEvents(user.id);
 	});
 	res.send();
 });
