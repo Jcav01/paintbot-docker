@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, codeBlock } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, codeBlock, InteractionContextType } = require('discord.js');
 const table = require('text-table');
 
 module.exports = {
@@ -6,7 +6,7 @@ module.exports = {
 		.setName('list')
 		.setDescription('Shows a list of notifications set up for this channel.')
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-		.setDMPermission(false),
+		.setContexts([InteractionContextType.Guild]),
 	async execute(interaction) {
         // Extends the interaction timeout to 15 minutes
         await interaction.deferReply({ ephemeral: true });

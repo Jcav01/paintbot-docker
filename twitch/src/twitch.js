@@ -70,6 +70,66 @@ app.post('/add', async (req, res) => {
 	});
 	res.send();
 });
+app.post('/remove', async (req, res) => {
+	console.log('Received request to remove Twitch source:', req.body);
+	await waitfordb('http://database:8002');
+
+	const username = url.parseURL(req.body.source_url).path[0];
+	apiClient.users.getUserByName(username).then(async user => {
+
+		// Check if the source already exists
+		const sourceRes = await fetch(`http://database:8002/source/${user.id}`);
+		const source = await sourceRes.json();
+		console.table(source);
+
+		// If not, add the source to the database
+		if (!source[0]) {
+			const data = JSON.stringify({
+				notification_source: 'twitch',
+				source_url: req.body.source_url,
+				source_id: user.id,
+			});
+			const options = {
+				host: 'database',
+				port: '8002',
+				path: '/source',
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': Buffer.byteLength(data),
+				},
+			};
+			const source_req = http.request(options);
+			source_req.write(data);
+			source_req.end();
+
+			// Start listening for events for the new source
+			addEvents(user.id);
+		}
+
+		// Add the destination to the database
+		const data = JSON.stringify({
+			channel_id: req.body.discord_channel,
+			source_id: user.id,
+			minimum_interval: req.body.interval,
+			highlight_colour: req.body.highlight,
+		});
+		const options = {
+			host: 'database',
+			port: '8002',
+			path: '/destination',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(data),
+			},
+		};
+		const source_req = http.request(options);
+		source_req.write(data);
+		source_req.end();
+	});
+	res.send();
+});
 app.listen(8004, () => {
 	console.log('Twitch is listening on port 8004');
 });
