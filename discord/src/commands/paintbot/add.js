@@ -46,8 +46,8 @@ module.exports = {
 						.setDescription('RGB hex code for the colour on the left of the embed. Default is CD201F.')
 						.setRequired(false))),
 	async execute(interaction) {
-        // Extends the interaction timeout to 15 minutes
-        await interaction.deferReply({ ephemeral: true });
+		// Extends the interaction timeout to 15 minutes
+		await interaction.deferReply({ ephemeral: true });
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
@@ -66,8 +66,11 @@ module.exports = {
 				},
 			};
 			const req = http.request(request_options, async (res) => {
-				console.log(`STATUS: ${res.statusCode}`);
-				await interaction.editReply({ content: `Adding Twitch notification for <${interaction.options.getString('channel')}>.` });
+				if (res.statusCode !== 200) {
+					await interaction.editReply({ content: 'Failed to add Twitch notification. No changes have been made.' });
+					return;
+				}
+				await interaction.editReply({ content: `Added Twitch notification for <${interaction.options.getString('channel')}>.` });
 			});
 			req.write(options);
 			req.end();

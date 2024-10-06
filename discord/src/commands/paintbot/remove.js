@@ -26,8 +26,8 @@ module.exports = {
 						.setDescription('The URL of the Youtube channel.')
 						.setRequired(true))),
 	async execute(interaction) {
-        // Extends the interaction timeout to 15 minutes
-        await interaction.deferReply({ ephemeral: true });
+		// Extends the interaction timeout to 15 minutes
+		await interaction.deferReply({ ephemeral: true });
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
@@ -44,7 +44,10 @@ module.exports = {
 				},
 			};
 			const req = http.request(request_options, async (res) => {
-				console.log(`STATUS: ${res.statusCode}`);
+				if (res.statusCode !== 200) {
+					await interaction.editReply({ content: 'Failed to remove Twitch notification. No changes have been made.' });
+					return;
+				}
 				await interaction.editReply({ content: `Removed Twitch notification for <${interaction.options.getString('channel')}>.` });
 			});
 			req.write(options);

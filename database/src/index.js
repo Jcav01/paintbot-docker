@@ -26,6 +26,11 @@ app.route('/source/:source')
 		console.log('Received request to set is_online for', req.params.source, 'to', req.query.isOnline);
 		await db.query('UPDATE sources SET is_online = $2 WHERE source_id = $1', [req.params.source, req.query.isOnline]);
 		res.send();
+	})
+	.delete(async (req, res) => {
+		console.log('Received request to delete source', req.params.source);
+		await db.query('UPDATE sources SET is_online = $2 WHERE source_id = $1', [req.params.source, req.query.isOnline]);
+		res.send();
 	});
 
 app.post('/source', async (req, res) => {
@@ -78,9 +83,57 @@ app.put('/destinations/:destination/:source', async (req, res) => {
 });
 
 app.post('/destination', async (req, res) => {
-	console.log('Received request to add destination:', req.body.channel_id);
-	const result = await db.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour) VALUES($1, $2, $3, $4) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour]);
+	console.log('Received request to add destination:', req.body.channel_id, 'for source:', req.body.source_id);
+	const source = await db.query('SELECT * FROM sources WHERE source_id = $1', [req.body.source_id]);
+	let result;
+	if (source.rows.length === 0) {
+		const client = await db.getClient();
+		try {
+			client.query('BEGIN');
+			client.query('INSERT INTO sources (source_id, notification_source, source_url) VALUES($1, $2, $3)', [req.body.source_id, req.body.notification_source, req.body.source_url]);
+			result = client.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour) VALUES($1, $2, $3, $4) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour]);
+			client.query('COMMIT');
+		} catch (error) {
+			client.query('ROLLBACK');
+			console.log('Error adding destination:', error);
+			res.status(500).send({message: 'Unable to add destination! No changes were made.'});
+			return;
+		} finally {
+			client.release();
+		}
+	} else {
+		try {
+			result = await db.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour) VALUES($1, $2, $3, $4) RETURNING channel_id',
+				[req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour]);
+		} catch (error) {
+			// console.log('Error adding destination:', error);
+			res.status(500).send({message: 'Unable to add destination! No changes were made.'});
+			return;
+		}
+	}
 	res.json(result.rows);
+});
+
+app.delete('/destination/:destination/:source', async (req, res) => {
+	console.log('Received request to remove destination:', req.params.destination, 'for source:', req.params.source);
+	const client = await db.getClient();
+	try {
+		client.query('BEGIN');
+		client.query('DELETE FROM destinations WHERE channel_id = $1 AND source_id = $2', [req.params.destination, req.params.source]);
+		const count = await client.query('SELECT COUNT(*) FROM destinations WHERE source_id = $1', [req.params.source]);
+		if (count.rows[0].count == 0) {
+			client.query('DELETE FROM sources WHERE source_id = $1', [req.params.source]);
+		}
+		client.query('COMMIT');
+	} catch (error) {
+		client.query('ROLLBACK');
+		console.log('Error deleting destination:', error);
+		res.status(500).send({message: 'Unable to delete destination! No changes were made.'});
+		return;
+	} finally {
+		client.release();
+	}
+	res.send();
 });
 
 app.listen(8002, () => {
