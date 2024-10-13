@@ -74,7 +74,7 @@ client.login(secrets.token);
 app.post('/embed/send', async (req, res) => {
 	console.log(JSON.stringify(req.body.embed));
 	const messages = [];
-	for (const info of req.body.channelInfo) {
+	req.body.channelInfo.forEach(async info => {
 		const channel = client.channels.cache.get(info.channelId);
 		const embed = new EmbedBuilder()
 			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
@@ -85,9 +85,9 @@ app.post('/embed/send', async (req, res) => {
 			.addFields(req.body.embed.fields)
 			.setImage(req.body.embed.image.url);
 
-		const message = await channel.send({ embeds: [embed] });
+		const message = await channel.send({ content: info.notification_message, embeds: [embed] });
 		messages.push({ messageId: message.id, channelId: info.channelId });
-	}
+	});
 
 	res.send(messages);
 });
@@ -97,7 +97,7 @@ app.post('/embed/edit', (req, res) => {
 	req.body.channelInfo.forEach(info => {
 		const channel = client.channels.cache.get(info.channelId);
 		channel.messages.fetch(info.messageId)
-			.then(message => {
+			.then(async message => {
 				const embed = new EmbedBuilder()
 					.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
 					.setTitle(req.body.embed.title)
@@ -107,14 +107,14 @@ app.post('/embed/edit', (req, res) => {
 					.addFields(req.body.embed.fields)
 					.setImage(req.body.embed.image.url);
 
-				message.edit({ embeds: [embed] })
+				await message.edit({ content: info.notification_message, embeds: [embed] })
 					.catch(console.error);
 			})
 			.catch(console.error);
 	});
-    res.send();
+	res.send();
 });
 
 app.listen(8001, () => {
-        console.log('Discord is listening on port 8001');
-    });
+	console.log('Discord is listening on port 8001');
+});

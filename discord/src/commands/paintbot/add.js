@@ -25,6 +25,11 @@ module.exports = {
 					option
 						.setName('highlight')
 						.setDescription('RGB hex code for the colour on the left of the embed. Default is 9146FF.')
+						.setRequired(false))
+				.addStringOption(option =>
+					option
+						.setName('message')
+						.setDescription('The message to display before the embed.')
 						.setRequired(false)))
 		.addSubcommand(subcommand =>
 			subcommand
@@ -44,6 +49,11 @@ module.exports = {
 					option
 						.setName('highlight')
 						.setDescription('RGB hex code for the colour on the left of the embed. Default is CD201F.')
+						.setRequired(false))
+				.addStringOption(option =>
+					option
+						.setName('message')
+						.setDescription('The message to display before the link.')
 						.setRequired(false))),
 	async execute(interaction) {
 		// Extends the interaction timeout to 15 minutes
@@ -54,6 +64,7 @@ module.exports = {
 				source_url: interaction.options.getString('channel'),
 				interval: interaction.options.getNumber('interval'),
 				highlight: interaction.options.getString('highlight') || '9146FF',
+				message: interaction.options.getString('message'),
 			});
 			const request_options = {
 				host: 'twitch',

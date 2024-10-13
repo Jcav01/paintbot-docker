@@ -14,7 +14,14 @@ app.post('/add', async (req, res) => {
 	console.log('Received request to add Twitch source:', req.body);
 	await waitfordb('http://database:8002');
 
-	const username = url.parseURL(req.body.source_url).path[0];
+	let username;
+	try {
+		username = url.parseURL(req.body.source_url).path[0];
+	} catch (error) {
+		console.error(error);
+		res.status(400).send({ message: 'Invalid source URL' });
+		return;
+	}
 	apiClient.users.getUserByName(username).then(async user => {
 		const data = JSON.stringify({
 			notification_source: 'twitch',
@@ -24,6 +31,7 @@ app.post('/add', async (req, res) => {
 			source_id: user.id,
 			minimum_interval: req.body.interval,
 			highlight_colour: req.body.highlight,
+			message: req.body.message,
 		});
 		const options = {
 			host: 'database',
@@ -58,8 +66,20 @@ app.delete('/remove', async (req, res) => {
 	console.log('Received request to remove Twitch source:', req.body.source_url, 'for channel', req.body.discord_channel);
 	await waitfordb('http://database:8002');
 
-	const username = url.parseURL(req.body.source_url).path[0];
+	let username;
+	try {
+		username = url.parseURL(req.body.source_url).path[0];
+	} catch (error) {
+		console.error(error);
+		res.status(400).send({ message: 'Invalid source URL' });
+		return;
+	}
 	apiClient.users.getUserByName(username).then(async user => {
+		const subscription = subs.find(element => element.source === user.id);
+		if (!subscription) {
+			res.status(404).send({ message: 'Source not found' });
+			return;
+		}
 		// Remove the destination from the database
 		const options = {
 			host: 'database',
@@ -75,12 +95,9 @@ app.delete('/remove', async (req, res) => {
 			}
 
 			// Stop listening for events for the removed source
-			apiClient.eventSub.getSubscriptions().then(subs => {
-				subs.data.filter(sub => sub.condition.broadcaster_user_id === user.id).forEach(sub => {
-					if (sub) {
-						apiClient.eventSub.deleteSubscription(sub.id);
-					}
-				});
+			subscription.subscriptions.forEach(sub => {
+				sub.stop();
+				subs.splice(subs.indexOf(subscription), 1);
 			});
 
 			res.send();
@@ -116,6 +133,7 @@ const sourcesRes = await fetch('http://database:8002/sources/twitch');
 const sources = await sourcesRes.json();
 console.table(sources);
 
+let subs = [];
 const twitchListener = await startListener();
 
 // Ensure any changes to the sources are reflected in the listener
@@ -197,7 +215,7 @@ async function handleStreamOnline(broadcasterId) {
 
 	// Create an object to POST to the Discord webhook
 	const embed_data = JSON.stringify({
-		channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour }; }),
+		channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, notification_message: destination.notification_message }; }),
 		embed: await formatEmbed(broadcasterId),
 	});
 
@@ -315,7 +333,7 @@ async function handleChannelUpdate(broadcasterId) {
 
 		// Create an object to POST to the Discord webhook
 		const embed_data = JSON.stringify({
-			channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, messageId: destination.last_message_id }; }),
+			channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, messageId: destination.last_message_id, notification_message: destination.notification_message }; }),
 			embed: await formatEmbed(broadcasterId),
 		});
 
@@ -405,9 +423,9 @@ function addHistory(sourceId, notificationType) {
 }
 
 function addEvents(sourceId) {
-	twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId));
-	twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId));
-	twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId));
+	subs.push({source: sourceId, subscriptions: [twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId)),
+	twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId)),
+	twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId))]});
 }
 
 async function formatEmbed(broadcasterId) {

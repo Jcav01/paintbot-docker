@@ -91,7 +91,7 @@ app.post('/destination', async (req, res) => {
 		try {
 			client.query('BEGIN');
 			client.query('INSERT INTO sources (source_id, notification_source, source_url) VALUES($1, $2, $3)', [req.body.source_id, req.body.notification_source, req.body.source_url]);
-			result = client.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour) VALUES($1, $2, $3, $4) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour]);
+			result = client.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour, notification_message) VALUES($1, $2, $3, $4, $5) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour, req.body.message]);
 			client.query('COMMIT');
 		} catch (error) {
 			client.query('ROLLBACK');
