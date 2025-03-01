@@ -80,7 +80,7 @@ client.login(secrets.token);
 app.post('/embed/send', async (req, res) => {
 	console.log(JSON.stringify(req.body.embed));
 	const messages = [];
-	req.body.channelInfo.forEach(async info => {
+	await Promise.all(req.body.channelInfo.map(async info => {
 		const channel = client.channels.cache.get(info.channelId);
 		const embed = new EmbedBuilder()
 			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
@@ -91,9 +91,9 @@ app.post('/embed/send', async (req, res) => {
 			.addFields(req.body.embed.fields)
 			.setImage(req.body.embed.image.url);
 
-		const message = await channel.send({ content: info.notification_message, embeds: [embed] });
-		messages.push({ messageId: message.id, channelId: info.channelId });
-	});
+		await channel.send({ content: info.notification_message, embeds: [embed] })
+			.then(message => messages.push({ messageId: message.id, channelId: info.channelId }));
+	}));
 
 	res.send(messages);
 });
@@ -112,7 +112,7 @@ app.post('/embed/edit', (req, res) => {
 					.setThumbnail(req.body.embed.thumbnail.url)
 					.addFields(req.body.embed.fields)
 					.setImage(req.body.embed.image.url);
-
+					
 				await message.edit({ content: info.notification_message, embeds: [embed] })
 					.catch(console.error);
 			})
