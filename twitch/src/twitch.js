@@ -111,7 +111,7 @@ app.listen(8004, () => {
 
 
 // Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets.json', function (err) {
+const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets', function (err) {
 	if (err) {
 		throw err;
 	}

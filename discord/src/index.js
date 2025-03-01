@@ -1,11 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const secrets = require('/run/secrets/discord-secrets.json');
 const express = require('express');
 const app = express();
 // enable middleware to parse body of Content-type: application/json
 app.use(express.json());
+
+// Load the secrets from the secrets file
+const secrets = JSON.parse(fs.readFileSync('/run/secrets/discord-secrets', function(err) {
+	if (err) {
+		throw err;
+	}
+}));
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });

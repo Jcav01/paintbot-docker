@@ -4,7 +4,7 @@ import * as fs from 'fs';
 const { Pool } = pg;
 
 // Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/database-secrets.json', function(err) {
+const secrets = JSON.parse(fs.readFileSync('/run/secrets/database-secrets', function(err) {
 	if (err) {
 		throw err;
 	}
