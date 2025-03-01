@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  NGROK_AUTHTOKEN: 2g2TNvwmFP97J77WnnzOVtPkS4K_dEwgrtZU8q66WHeUvZS8
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: twitch-twitch-env
+  name: twitch-env

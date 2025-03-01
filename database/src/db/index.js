@@ -1,14 +1,9 @@
 import pg from 'pg';
 import { Connector } from '@google-cloud/cloud-sql-connector';
-import * as fs from 'fs';
 const { Pool } = pg;
 
 // Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/database-secrets', function(err) {
-	if (err) {
-		throw err;
-	}
-}));
+const secrets = process.env.database-secrets;
 
 const connector = new Connector();
 const clientOpts = await connector.getOptions({
