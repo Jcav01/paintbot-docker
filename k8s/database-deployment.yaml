@@ -1,46 +1,237 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: database
-  namespace: "default"
+  annotations:
+    autopilot.gke.io/resource-adjustment: '{"input":{"containers":[{"name":"database"}]},"output":{"containers":[{"limits":{"ephemeral-storage":"1Gi"},"requests":{"cpu":"500m","ephemeral-storage":"1Gi","memory":"2Gi"},"name":"database"}]},"modified":true}'
+    autopilot.gke.io/warden-version: 31.23.0-gke.9
+    deployment.kubernetes.io/revision: "3"
+    kompose.cmd: C:\ProgramData\chocolatey\lib\kubernetes-kompose\tools\kompose.exe
+      convert
+    kompose.version: 1.35.0 (9532ceef3)
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"kompose.cmd":"C:\\ProgramData\\chocolatey\\lib\\kubernetes-kompose\\tools\\kompose.exe convert","kompose.version":"1.35.0 (9532ceef3)"},"labels":{"io.kompose.service":"database"},"name":"database","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"io.kompose.service":"database"}},"template":{"metadata":{"annotations":{"kompose.cmd":"C:\\ProgramData\\chocolatey\\lib\\kubernetes-kompose\\tools\\kompose.exe convert","kompose.version":"1.35.0 (9532ceef3)"},"labels":{"io.kompose.service":"database"}},"spec":{"containers":[{"image":"northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database","name":"database","ports":[{"containerPort":8002,"protocol":"TCP"}],"volumeMounts":[{"mountPath":"/run/secrets","name":"database-secrets","subPath":"database-secrets"}]}],"restartPolicy":"Always","volumes":[{"name":"paintbot-3e5d5b0e2fe3","secret":{"items":[{"key":"paintbot-3e5d5b0e2fe3","path":"paintbot-3e5d5b0e2fe3"}],"secretName":"paintbot-3e5d5b0e2fe3"}},{"name":"database-secrets","secret":{"items":[{"key":"database-secrets","path":"database-secrets"}],"secretName":"database-secrets"}}]}}}}
+  creationTimestamp: "2025-03-01T09:43:31Z"
+  generation: 3
   labels:
-    app: database
+    io.kompose.service: database
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:kompose.cmd: {}
+          f:kompose.version: {}
+          f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:labels:
+          .: {}
+          f:io.kompose.service: {}
+      f:spec:
+        f:progressDeadlineSeconds: {}
+        f:replicas: {}
+        f:revisionHistoryLimit: {}
+        f:selector: {}
+        f:strategy:
+          f:rollingUpdate:
+            .: {}
+            f:maxSurge: {}
+            f:maxUnavailable: {}
+          f:type: {}
+        f:template:
+          f:metadata:
+            f:annotations:
+              .: {}
+              f:kompose.cmd: {}
+              f:kompose.version: {}
+            f:labels:
+              .: {}
+              f:io.kompose.service: {}
+          f:spec:
+            f:containers:
+              k:{"name":"database"}:
+                .: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":8002,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:protocol: {}
+                f:resources: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/run/secrets"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                    f:subPath: {}
+            f:dnsPolicy: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"database-secrets"}:
+                .: {}
+                f:name: {}
+                f:secret:
+                  .: {}
+                  f:defaultMode: {}
+                  f:items: {}
+                  f:secretName: {}
+              k:{"name":"paintbot-3e5d5b0e2fe3"}:
+                .: {}
+                f:name: {}
+                f:secret:
+                  .: {}
+                  f:defaultMode: {}
+                  f:items: {}
+                  f:secretName: {}
+    manager: kubectl-client-side-apply
+    operation: Update
+    time: "2025-03-01T09:54:35Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:template:
+          f:spec:
+            f:containers:
+              k:{"name":"database"}:
+                f:image: {}
+                f:imagePullPolicy: {}
+    manager: unknown
+    operation: Update
+    time: "2025-03-01T10:05:19Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:deployment.kubernetes.io/revision: {}
+      f:status:
+        f:conditions:
+          .: {}
+          k:{"type":"Available"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Progressing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:observedGeneration: {}
+        f:replicas: {}
+        f:unavailableReplicas: {}
+        f:updatedReplicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    subresource: status
+    time: "2025-03-01T10:18:19Z"
+  name: database
+  namespace: default
+  resourceVersion: "43838"
+  uid: 70bb727c-776e-4d6d-9411-efa25ad3785f
 spec:
+  progressDeadlineSeconds: 600
   replicas: 1
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: database
+      io.kompose.service: database
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
   template:
     metadata:
       annotations:
-        kompose.cmd: C:\ProgramData\chocolatey\lib\kubernetes-kompose\tools\kompose.exe convert
+        kompose.cmd: C:\ProgramData\chocolatey\lib\kubernetes-kompose\tools\kompose.exe
+          convert
         kompose.version: 1.35.0 (9532ceef3)
+      creationTimestamp: null
       labels:
-        app: database
+        io.kompose.service: database
     spec:
       containers:
-        - image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database
-          name: database
-          ports:
-            - containerPort: 8002
-              protocol: TCP
-          volumeMounts:
-            - mountPath: /run/secrets
-              name: paintbot-3e5d5b0e2fe3
-              subPath: paintbot-3e5d5b0e2fe3
-              name: database-secrets
-              subPath: database-secrets
+      - image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database@sha256:e47375a661f85df779630459e39c5a51f8f17116c0159320dc737bb1f800af42
+        imagePullPolicy: IfNotPresent
+        name: database
+        ports:
+        - containerPort: 8002
+          protocol: TCP
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
+          requests:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 2Gi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /run/secrets
+          name: database-secrets
+          subPath: database-secrets
+      dnsPolicy: ClusterFirst
       restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/arch
+        operator: Equal
+        value: amd64
       volumes:
-        - name: paintbot-3e5d5b0e2fe3
-          secret:
-            items:
-              - key: paintbot-3e5d5b0e2fe3
-                path: paintbot-3e5d5b0e2fe3
-            secretName: paintbot-3e5d5b0e2fe3
-        - name: database-secrets
-          secret:
-            items:
-              - key: database-secrets
-                path: database-secrets
-            secretName: database-secrets
+      - name: paintbot-3e5d5b0e2fe3
+        secret:
+          defaultMode: 420
+          items:
+          - key: paintbot-3e5d5b0e2fe3
+            path: paintbot-3e5d5b0e2fe3
+          secretName: paintbot-3e5d5b0e2fe3
+      - name: database-secrets
+        secret:
+          defaultMode: 420
+          items:
+          - key: database-secrets
+            path: database-secrets
+          secretName: database-secrets
+status:
+  conditions:
+  - lastTransitionTime: "2025-03-01T09:43:32Z"
+    lastUpdateTime: "2025-03-01T09:43:32Z"
+    message: Deployment does not have minimum availability.
+    reason: MinimumReplicasUnavailable
+    status: "False"
+    type: Available
+  - lastTransitionTime: "2025-03-01T10:18:19Z"
+    lastUpdateTime: "2025-03-01T10:18:19Z"
+    message: ReplicaSet "database-554895bc9f" has timed out progressing.
+    reason: ProgressDeadlineExceeded
+    status: "False"
+    type: Progressing
+  observedGeneration: 3
+  replicas: 2
+  unavailableReplicas: 2
+  updatedReplicas: 1
