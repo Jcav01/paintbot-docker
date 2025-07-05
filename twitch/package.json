@@ -14,14 +14,14 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@twurple/api": "^7.2.1",
-    "@twurple/auth": "^7.2.1",
-    "@twurple/eventsub-http": "^7.2.1",
-    "@twurple/eventsub-ngrok": "^7.2.1",
-    "express": "^4.21.2",
-    "whatwg-url": "^14.1.1"
+    "@twurple/api": "^7.3.0",
+    "@twurple/auth": "^7.3.0",
+    "@twurple/eventsub-http": "^7.3.0",
+    "@twurple/eventsub-ngrok": "^7.3.0",
+    "express": "^5.1.0",
+    "whatwg-url": "^14.2.0"
   },
   "devDependencies": {
-    "eslint": "^9.21.0"
+    "eslint": "^9.30.1"
   }
 }
