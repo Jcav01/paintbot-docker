@@ -3,12 +3,24 @@ import { Connector } from '@google-cloud/cloud-sql-connector';
 const { Pool } = pg;
 import * as fs from 'fs';
 
-// Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/database-secrets', function(err) {
-	if (err) {
-		throw err;
-	}
-}));
+// Load the secrets from Kubernetes mounted secrets
+let secrets;
+try {
+	// In Kubernetes, secrets are mounted as individual files in a directory
+	const secretsPath = '/etc/secrets';
+	secrets = {
+		user: fs.readFileSync(`${secretsPath}/postgres-user`, 'utf8').trim(),
+		password: fs.readFileSync(`${secretsPath}/postgres-password`, 'utf8').trim(),
+		databaseName: fs.readFileSync(`${secretsPath}/postgres-db`, 'utf8').trim(),
+		instanceConnectionName: fs.readFileSync(`${secretsPath}/instance-connection-name`, 'utf8').trim()
+	};
+	
+	console.log('Database secrets loaded successfully from Kubernetes');
+	console.log('Instance connection name:', secrets.instanceConnectionName);
+} catch (err) {
+	console.error('Failed to load database secrets:', err.message);
+	process.exit(1);
+}
 
 const connector = new Connector();
 const clientOpts = await connector.getOptions({

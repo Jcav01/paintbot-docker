@@ -110,12 +110,22 @@ app.listen(8004, () => {
 });
 
 
-// Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/twitch-secrets', function (err) {
-	if (err) {
-		throw err;
-	}
-}));
+// Load the secrets from Kubernetes mounted secrets
+let secrets;
+try {
+	// In Kubernetes, secrets are mounted as individual files in a directory
+	const secretsPath = '/etc/secrets';
+	secrets = {
+		clientId: fs.readFileSync(`${secretsPath}/client-id`, 'utf8').trim(),
+		clientSecret: fs.readFileSync(`${secretsPath}/client-secret`, 'utf8').trim(),
+		eventSubSecret: fs.readFileSync(`${secretsPath}/eventsub-secret`, 'utf8').trim()
+	};
+	
+	console.log('Secrets loaded successfully from Kubernetes');
+} catch (err) {
+	console.error('Failed to load secrets:', err.message);
+	process.exit(1);
+}
 
 const authProvider = new AppTokenAuthProvider(secrets.clientId, secrets.clientSecret);
 const apiClient = new ApiClient({ authProvider });

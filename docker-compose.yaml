@@ -2,6 +2,7 @@ services:
   twitch:
     depends_on:
       - database
+    image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
     build: 
       context: twitch
       args:
@@ -18,6 +19,7 @@ services:
     networks:
       - paintbot
   discord:
+    image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/discord:latest
     build: discord
     ports:
       - 8001
@@ -26,6 +28,7 @@ services:
     networks:
       - paintbot
   database:
+    image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest
     build: database
     secrets:
       - paintbot-3e5d5b0e2fe3

@@ -1,3 +1,7 @@
+# Discord Deployment Template
+# This file references Kubernetes secrets that should be created using kubectl
+# DO NOT put actual secret values in this file
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,3 +42,15 @@ spec:
         secret:
           secretName: discord-secrets
       restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discord
+spec:
+  selector:
+    app: discord
+  ports:
+  - port: 8001
+    targetPort: 8001
+  type: ClusterIP

@@ -6,12 +6,20 @@ const app = express();
 // enable middleware to parse body of Content-type: application/json
 app.use(express.json());
 
-// Load the secrets from the secrets file
-const secrets = JSON.parse(fs.readFileSync('/run/secrets/discord-secrets', function(err) {
-	if (err) {
-		throw err;
-	}
-}));
+// Load the secrets from Kubernetes mounted secrets
+let secrets;
+try {
+	// In Kubernetes, secrets are mounted as individual files in a directory
+	const secretsPath = '/etc/secrets';
+	secrets = {
+		token: fs.readFileSync(`${secretsPath}/bot-token`, 'utf8').trim()
+	};
+	
+	console.log('Discord secrets loaded successfully from Kubernetes');
+} catch (err) {
+	console.error('Failed to load Discord secrets:', err.message);
+	process.exit(1);
+}
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });

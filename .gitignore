@@ -133,3 +133,21 @@ dist
 secrets/
 discord/src/config.json
 deploy-commands/
+
+# Kubernetes secrets and sensitive files
+*-secrets.yaml
+secrets/
+*.key
+*.pem
+key.json
+service-account*.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Keep template files
+!*-template.yaml
+!*-secrets-template.yaml

@@ -1,0 +1,113 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - staging
+
+env:
+  PROJECT_ID: paintbot
+  GKE_CLUSTER: paintbot-dev-cluster
+  GKE_ZONE: northamerica-northeast1-a
+  REGISTRY: northamerica-northeast1-docker.pkg.dev
+  REGISTRY_PROJECT: paintbot
+  REGISTRY_REPO: paintbot
+
+jobs:
+  deploy-dev:
+    name: Deploy to Development Environment
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY_DEV }}'
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |-
+        gcloud auth configure-docker $REGISTRY --quiet
+
+    - name: Get GKE credentials
+      run: |-
+        gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
+
+    # Build and push Docker images with dev tag
+    - name: Build and Push Images for Development
+      run: |-
+        # Database
+        cd database
+        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA"
+        
+        # Discord
+        cd ../discord
+        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA"
+        
+        # Twitch
+        cd ../twitch
+        docker build --build-arg NODE_ENV=development -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA"
+
+    # Deploy to development namespace
+    - name: Create development namespace
+      run: |-
+        kubectl create namespace development --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Copy secrets to development namespace
+      run: |-
+        # Copy secrets from default namespace to development namespace
+        echo "Copying secrets to development namespace..."
+        
+        # Check if secrets exist in default namespace first
+        kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found in default namespace" && exit 1)
+        kubectl get secret discord-secrets || (echo "❌ discord-secrets not found in default namespace" && exit 1)
+        kubectl get secret database-secrets || (echo "❌ database-secrets not found in default namespace" && exit 1)
+        kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found in default namespace" && exit 1)
+        
+        # Copy secrets to development namespace
+        kubectl get secret twitch-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
+        kubectl get secret discord-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
+        kubectl get secret database-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
+        kubectl get secret paintbot-service-account -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
+
+    - name: Deploy to Development Namespace
+      run: |-
+        # Apply ConfigMap to development namespace
+        kubectl apply -f k8s/twitch-env-configmap.yaml -n development || echo "ConfigMap not found, skipping"
+        
+        # Update deployment files with dev images and apply to development namespace
+        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA|g" k8s/database-deployment.yaml | kubectl apply -f - -n development
+        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/discord:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA|g" k8s/discord-deployment.yaml | kubectl apply -f - -n development
+        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA|g" k8s/twitch-deployment.yaml | kubectl apply -f - -n development
+
+    - name: Verify Development Deployment
+      run: |-
+        kubectl wait --for=condition=available --timeout=300s deployment/database -n development
+        kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
+        kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+        kubectl get pods -n development
+        kubectl get services -n development
+        kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
+        kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+        kubectl get pods -n development
+        kubectl get services -n development
