@@ -12,7 +12,7 @@ try {
 		user: fs.readFileSync(`${secretsPath}/postgres-user`, 'utf8').trim(),
 		password: fs.readFileSync(`${secretsPath}/postgres-password`, 'utf8').trim(),
 		databaseName: fs.readFileSync(`${secretsPath}/postgres-db`, 'utf8').trim(),
-		instanceConnectionName: fs.readFileSync(`${secretsPath}/instance-connection-name`, 'utf8').trim()
+		instanceConnectionName: fs.readFileSync(`${secretsPath}/instanceConnectionName`, 'utf8').trim()
 	};
 	
 	console.log('Database secrets loaded successfully from Kubernetes');

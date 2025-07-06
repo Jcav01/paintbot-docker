@@ -20,7 +20,7 @@ module.exports = {
         const transformedData = data.map(element => [
             element.source_id,
             element.source_url,
-            element.minimum_interval,
+            element.minimum_interval ?? 0,
             Buffer.from(element.highlight_colour.data).toString(),
         ]);
         dataArr.push(...transformedData);
