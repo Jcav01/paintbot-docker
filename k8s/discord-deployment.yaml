@@ -38,3 +38,15 @@ spec:
         secret:
           secretName: discord-secrets
       restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discord
+spec:
+  selector:
+    app: discord
+  ports:
+  - port: 8001
+    targetPort: 8001
+  type: ClusterIP

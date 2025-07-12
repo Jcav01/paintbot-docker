@@ -1,16 +1,13 @@
 import { AppTokenAuthProvider } from '@twurple/auth';
 import { ApiClient } from '@twurple/api';
-import { DirectConnectionAdapter, EventSubHttpListener } from '@twurple/eventsub-http';
-import { NgrokAdapter } from '@twurple/eventsub-ngrok';
+import { EventSubMiddleware } from '@twurple/eventsub-http';
 import * as fs from 'fs';
 import * as http from 'http';
 import express from 'express';
 import * as url from 'whatwg-url';
 const app = express();
-// enable middleware to parse body of Content-type: application/json
-app.use(express.json());
 
-app.post('/add', async (req, res) => {
+app.post('/add', express.json(), async (req, res) => {
 	console.log('Received request to add Twitch source:', req.body);
 	await waitfordb('http://database:8002');
 
@@ -62,7 +59,7 @@ app.post('/add', async (req, res) => {
 		source_req.end();
 	});
 });
-app.delete('/remove', async (req, res) => {
+app.delete('/remove', express.json(), async (req, res) => {
 	console.log('Received request to remove Twitch source:', req.body.source_url, 'for channel', req.body.discord_channel);
 	await waitfordb('http://database:8002');
 
@@ -100,15 +97,19 @@ app.delete('/remove', async (req, res) => {
 				subs.splice(subs.indexOf(subscription), 1);
 			});
 
+			// Log the current subscription quota
+			apiClient.eventSub.getSubscriptions().then(subs => {
+				console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
+			});
+
 			res.send();
 		});
 		delete_req.end();
 	});
 });
-app.listen(8004, () => {
-	console.log('Twitch is listening on port 8004');
+app.get('/', (req, res) => {
+	res.status(200).send('OK');
 });
-
 
 // Load the secrets from Kubernetes mounted secrets
 let secrets;
@@ -130,6 +131,14 @@ try {
 const authProvider = new AppTokenAuthProvider(secrets.clientId, secrets.clientSecret);
 const apiClient = new ApiClient({ authProvider });
 
+const twitchListener = new EventSubMiddleware({
+	apiClient,
+	hostName: 'dev.paintbot.net',
+	pathPrefix: '/webhooks/twitch',
+	secret: secrets.eventSubSecret
+});
+twitchListener.apply(app);
+
 try {
 	await waitfordb('http://database:8002');
 	console.log('Database is up');
@@ -138,52 +147,14 @@ catch (err) {
 	console.log(err.message);
 }
 
-// Get the list of sources from the database
-const sourcesRes = await fetch('http://database:8002/sources/twitch');
-const sources = await sourcesRes.json();
-console.table(sources);
-
 let subs = [];
-const twitchListener = await startListener();
 
-// Ensure any changes to the sources are reflected in the listener
-sources.forEach(element => addEvents(element.source_id));
-
-async function startListener() {
-	const listener = await buildListener();
-	listener.start();
-	return listener;
-}
-
-async function buildListener() {
-	const env = process.env.NODE_ENV || 'development';
-	console.log(`Environment: ${env}`);
-	switch (env) {
-		case 'development':
-			return new EventSubHttpListener({
-				apiClient,
-				adapter: new NgrokAdapter({
-					ngrokConfig: {
-						authtoken_from_env: true,
-						domain: 'weasel-ideal-evenly.ngrok-free.app',
-					},
-				}),
-				secret: secrets.eventSubSecret,
-			});
-		case 'production':
-			return new EventSubHttpListener({
-				apiClient,
-				adapter: new DirectConnectionAdapter({
-					hostName: 'example.com',
-					sslCert: {
-						key: 'aaaaaaaaaaaaaaa',
-						cert: 'bbbbbbbbbbbbbbb',
-					},
-				}),
-				secret: secrets.eventSubSecret,
-			});
-	}
-}
+app.listen(8004, async () => {
+	await twitchListener.markAsReady();
+	console.log('Twitch is listening on port 8004');
+	// Ensure any changes to the sources are reflected in the listener
+	syncEventSubSubscriptions();
+});
 
 async function handleStreamOnline(broadcasterId) {
 	console.log(`Stream online: ${broadcasterId}`);
@@ -433,9 +404,11 @@ function addHistory(sourceId, notificationType) {
 }
 
 function addEvents(sourceId) {
-	subs.push({source: sourceId, subscriptions: [twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId)),
-	twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId)),
-	twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId))]});
+	subs.push({source: sourceId, subscriptions: [
+		twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId)),
+		twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId)),
+		twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId))
+	]});
 }
 
 async function formatEmbed(broadcasterId) {
@@ -477,8 +450,42 @@ async function formatEmbed(broadcasterId) {
 	};
 }
 
-// async function removeEvents(sourceId) {
-// 	const allSubs = await apiClient.eventSub.getSubscriptions();
-// 	const subs = allSubs.data.filter(sub => sub.condition.broadcaster_user_id === sourceId);
-// 	subs.forEach(sub => apiClient.eventSub.deleteSubscription(sub.id));
-// }
+async function syncEventSubSubscriptions() {
+	// 1. Get all sources from your database
+	const sourcesRes = await fetch('http://database:8002/sources/twitch');
+	const sources = await sourcesRes.json();
+	const sourceIds = sources.map(src => src.source_id);
+	console.table(sources);
+
+	// 2. Get all current EventSub subscriptions from Twitch
+	const twitchSubs = await apiClient.eventSub.getSubscriptions();
+	console.table(twitchSubs.data.map(sub => ({
+		id: sub.id,
+		type: sub.type,
+		status: sub.status,
+		cost: sub.cost,
+		condition: sub.condition
+	})));
+
+	// 3. Remove subscriptions that are not in your source list
+	for (const sub of twitchSubs.data) {
+		// Check if the subscription's broadcasterId is in your sourceIds
+		const broadcasterId = sub.condition?.broadcaster_user_id || sub.condition?.user_id;
+		if (broadcasterId && !sourceIds.includes(broadcasterId)) {
+			await sub.unsubscribe();
+			console.log(`Removed stale EventSub subscription: ${sub.id}`);
+		}
+	}
+
+	// 4. Add subscriptions for all sources to listener
+	for (const sourceId of sourceIds) {
+		addEvents(sourceId); // Your existing function to add subscriptions
+		console.log(`Created EventSub subscription for source: ${sourceId}`);
+		console.log(await subs[0].subscriptions[0].getCliTestCommand());
+	}
+
+	// 5. Log the current subscription quota
+	apiClient.eventSub.getSubscriptions().then(subs => {
+		console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
+	});
+}

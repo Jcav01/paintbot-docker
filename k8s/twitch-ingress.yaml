@@ -1,0 +1,28 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: twitch-ssl-cert
+spec:
+  domains:
+    - dev.paintbot.net  # Replace with your domain
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: twitch-ingress
+  annotations:
+    networking.gke.io/managed-certificates: twitch-ssl-cert
+    kubernetes.io/ingress.global-static-ip-name: paintbot-ip  # Optional: use reserved static IP
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: dev.paintbot.net  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: twitch
+            port:
+              number: 8004
