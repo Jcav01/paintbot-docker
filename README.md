@@ -157,82 +157,42 @@ kubectl create secret generic paintbot-service-account \
 
 **Important**: The GitHub Actions workflows need to be updated to work with the new Kubernetes secrets approach. Currently, they reference outdated secret management methods.
 
-### Current Workflows (Need Updates)
+### Current Workflows
 
-### 1. CI Pipeline (`ci.yaml`) ✅ **Still Accurate**
+### 1. CI Pipeline (`ci.yaml`)
 - Runs on every push and pull request
 - Tests all services with multiple Node.js versions
 - Performs security scanning with Trivy
 - Builds Docker images for testing
 
-### 2. Production Deployment (`deploy-to-gke.yaml`) ⚠️ **Needs Updates**
+### 2. Production Deployment (`deploy-to-gke.yaml`)
 - Triggers on pushes to `main` branch
 - Builds and pushes Docker images
-- **Issue**: Still tries to apply secret YAML files that no longer exist
-- **Fix Needed**: Update to verify secrets exist instead of applying them
 
-### 3. Development Deployment (`deploy-dev.yaml`) ⚠️ **Needs Updates** 
+### 3. Development Deployment (`deploy-dev.yaml`)
 - Triggers on pushes to `develop` branch
 - Deploys to development namespace
-- **Issue**: References old secret file approach
-- **Fix Needed**: Update secret handling for development namespace
 
-### 4. Release Pipeline (`release.yaml`) ✅ **Still Accurate**
+### 4. Release Pipeline (`release.yaml`)
 - Triggers on version tags (v*)
 - Creates tagged Docker images
 - Creates GitHub releases
 
-### 5. Setup and Validation (`setup.yaml`) ⚠️ **Needs Updates**
+### 5. Setup and Validation (`setup.yaml`)
 - Manual workflow for initial setup
-- **Issue**: May reference outdated secret validation
-- **Fix Needed**: Update to work with kubectl-created secrets
+- Validates secrets using `kubectl get secret`
 
-### Required GitHub Actions Updates
 
-The workflows need these changes to work with the new secrets approach:
+### GitHub Actions: Current State
 
-1. **Remove secret YAML file applications**:
-   ```yaml
-   # Remove these lines from workflows:
-   - kubectl apply -f k8s/database-secrets-secret.yaml
-   - kubectl apply -f k8s/discord-secrets-secret.yaml
-   - kubectl apply -f k8s/twitch-secrets-secret.yaml
-   ```
+All workflows now use the new Kubernetes secrets approach:
 
-2. **Add secret validation instead**:
-   ```yaml
-   # Add secret existence checks:
-   - name: Verify secrets exist
-     run: |
-       kubectl get secret twitch-secrets
-       kubectl get secret discord-secrets  
-       kubectl get secret database-secrets
-       kubectl get secret paintbot-service-account
-   ```
+1. **Secret validation**: Workflows check for required secrets using `kubectl get secret` before deployment.
+2. **No secret YAML files**: Secret YAML file application steps have been removed.
+3. **Deployment**: Uses combined deployment manifests for all services.
 
-3. **Update deployment commands**:
-   ```yaml
-   # Use combined deployment files:
-   - kubectl apply -f k8s/database-deployment.yaml
-   - kubectl apply -f k8s/discord-deployment.yaml
-   - kubectl apply -f k8s/twitch-deployment.yaml
-   ```
-
-### Temporary Workaround
-
-Until the workflows are updated, you should:
-
-1. **Create secrets manually** before triggering GitHub Actions:
-   ```powershell
-   .\deploy.ps1 create-secrets
-   ```
-
-2. **Use local deployment** for now:
-   ```powershell
-   .\deploy.ps1 deploy
-   ```
-
-3. **Monitor GitHub Actions** and expect secret-related failures until updated
+**No manual workaround needed.**
+Secrets should be created using the provided PowerShell script or manually with `kubectl` before running deployments.
 
 ## Environment Configuration
 

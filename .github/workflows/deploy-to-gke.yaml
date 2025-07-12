@@ -12,7 +12,7 @@ on:
 env:
   PROJECT_ID: paintbot
   GKE_CLUSTER: paintbot-cluster
-  GKE_ZONE: northamerica-northeast1-a
+  GKE_ZONE: northamerica-northeast1
   REGISTRY: northamerica-northeast1-docker.pkg.dev
   REGISTRY_PROJECT: paintbot
   REGISTRY_REPO: paintbot
@@ -97,9 +97,6 @@ jobs:
     # Deploy to GKE using combined deployment files
     - name: Deploy to GKE
       run: |-
-        # Apply ConfigMaps first
-        kubectl apply -f k8s/twitch-env-configmap.yaml || echo "ConfigMap not found, skipping"
-        
         # Apply combined deployment and service files
         kubectl apply -f k8s/database-deployment.yaml
         kubectl apply -f k8s/discord-deployment.yaml

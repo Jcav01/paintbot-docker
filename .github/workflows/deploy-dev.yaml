@@ -18,7 +18,7 @@ on:
 env:
   PROJECT_ID: paintbot
   GKE_CLUSTER: paintbot-dev-cluster
-  GKE_ZONE: northamerica-northeast1-a
+  GKE_ZONE: northamerica-northeast1
   REGISTRY: northamerica-northeast1-docker.pkg.dev
   REGISTRY_PROJECT: paintbot
   REGISTRY_REPO: paintbot
@@ -92,9 +92,6 @@ jobs:
 
     - name: Deploy to Development Namespace
       run: |-
-        # Apply ConfigMap to development namespace
-        kubectl apply -f k8s/twitch-env-configmap.yaml -n development || echo "ConfigMap not found, skipping"
-        
         # Update deployment files with dev images and apply to development namespace
         sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA|g" k8s/database-deployment.yaml | kubectl apply -f - -n development
         sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/discord:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA|g" k8s/discord-deployment.yaml | kubectl apply -f - -n development
