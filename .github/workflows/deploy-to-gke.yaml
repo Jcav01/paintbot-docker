@@ -39,6 +39,9 @@ jobs:
     - name: 'Use gcloud CLI'
       run: 'gcloud info'
 
+    - name: 'Install auth plugin'
+      run: 'gcloud components install gke-gcloud-auth-plugin --quiet'
+
     - name: Configure Docker to use gcloud as a credential helper
       run: |-
         gcloud auth configure-docker $REGISTRY --quiet
