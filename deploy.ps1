@@ -130,10 +130,8 @@ function Deploy-ToGKE {
     Write-Host "Deploying to GKE..." -ForegroundColor Yellow
     
     # Check secrets first
-    if (-not (Setup-Secrets)) {
+    if (-not (Setup-And-Create-Secrets)) {
         Write-Host "Deployment aborted - secrets not configured" -ForegroundColor Red
-        Write-Host "Please run the commands above to create the required secrets, then try again." -ForegroundColor Yellow
-        Write-Host "Or use '.\deploy.ps1 create-secrets' for interactive secret creation." -ForegroundColor Cyan
         return
     }
     
@@ -259,117 +257,80 @@ function Cleanup {
     }
 }
 
-function Setup-Secrets {
-    Write-Host "Setting up secrets..." -ForegroundColor Yellow
-    
-    # Check if secrets already exist
+function Setup-And-Create-Secrets {
+    Write-Host "Secret Setup & Creation Helper" -ForegroundColor Yellow
+    Write-Host "This will check for and create all required secrets interactively if missing." -ForegroundColor Cyan
+    Write-Host "" 
+
+    # Twitch secrets
     $twitchSecretExists = kubectl get secret twitch-secrets 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Twitch secrets not found. Please create them manually:" -ForegroundColor Red
-        Write-Host "kubectl create secret generic twitch-secrets \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=client-id=`"your-twitch-client-id`" \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=client-secret=`"your-twitch-client-secret`" \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=eventsub-secret=`"your-eventsub-secret`"" -ForegroundColor Cyan
-        Write-Host ""
-        return $false
+        Write-Host "Twitch secrets not found. Creating..." -ForegroundColor Cyan
+        $twitchClientId = Read-Host "Enter your Twitch Client ID"
+        $twitchClientSecret = Read-Host "Enter your Twitch Client Secret" -AsSecureString
+        $twitchEventSubSecret = Read-Host "Enter your Twitch EventSub Secret" -AsSecureString
+        $twitchClientSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchClientSecret))
+        $twitchEventSubSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchEventSubSecret))
+        kubectl create secret generic twitch-secrets `
+            --from-literal=client-id="$twitchClientId" `
+            --from-literal=client-secret="$twitchClientSecretPlain" `
+            --from-literal=eventsub-secret="$twitchEventSubSecretPlain"
+        Write-Host "✓ Twitch secrets created" -ForegroundColor Green
     } else {
         Write-Host "✓ Twitch secrets found" -ForegroundColor Green
     }
-    
+
+    # Discord secrets
     $discordSecretExists = kubectl get secret discord-secrets 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Discord secrets not found. Please create them manually:" -ForegroundColor Red
-        Write-Host "kubectl create secret generic discord-secrets \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=bot-token=`"your-discord-bot-token`"" -ForegroundColor Cyan
-        Write-Host ""
-        return $false
+        Write-Host "Discord secrets not found. Creating..." -ForegroundColor Cyan
+        $discordToken = Read-Host "Enter your Discord Bot Token" -AsSecureString
+        $discordTokenPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($discordToken))
+        kubectl create secret generic discord-secrets `
+            --from-literal=bot-token="$discordTokenPlain"
+        Write-Host "✓ Discord secrets created" -ForegroundColor Green
     } else {
         Write-Host "✓ Discord secrets found" -ForegroundColor Green
     }
-    
+
+    # Database secrets
     $databaseSecretExists = kubectl get secret database-secrets 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Database secrets not found. Please create them manually:" -ForegroundColor Red
-        Write-Host "kubectl create secret generic database-secrets \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=postgres-password=`"your-database-password`" \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=postgres-user=`"paintbot`" \`" -ForegroundColor Cyan
-        Write-Host "    --from-literal=postgres-db=`"paintbot`"" -ForegroundColor Cyan
-        Write-Host ""
-        return $false
+        Write-Host "Database secrets not found. Creating..." -ForegroundColor Cyan
+        $dbPassword = Read-Host "Enter your PostgreSQL password" -AsSecureString
+        $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
+        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name" -AsSecureString
+        $dbConnectionNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbConnectionName))
+        kubectl create secret generic database-secrets `
+            --from-literal=postgres-password="$dbPasswordPlain" `
+            --from-literal=postgres-user="paintbot" `
+            --from-literal=postgres-db="paintbot" `
+            --from-literal=instanceConnectionName="$dbConnectionNamePlain"
+        Write-Host "✓ Database secrets created" -ForegroundColor Green
     } else {
         Write-Host "✓ Database secrets found" -ForegroundColor Green
     }
-    
-    # Check for service account key if needed
+
+    # Service Account
     $serviceAccountExists = kubectl get secret paintbot-service-account 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Service account secret not found. Please create it manually:" -ForegroundColor Red
-        Write-Host "kubectl create secret generic paintbot-service-account \`" -ForegroundColor Cyan
-        Write-Host "    --from-file=key.json=path/to/your/service-account-key.json" -ForegroundColor Cyan
-        Write-Host ""
-        return $false
+        Write-Host "Service account secret not found. Creating..." -ForegroundColor Cyan
+        $keyPath = Read-Host "Enter path to your service account key.json file"
+        if (Test-Path $keyPath) {
+            kubectl create secret generic paintbot-service-account `
+                --from-file=key.json="$keyPath"
+            Write-Host "✓ Service account secret created" -ForegroundColor Green
+        } else {
+            Write-Host "Service account key file not found at: $keyPath" -ForegroundColor Red
+        }
     } else {
         Write-Host "✓ Service account secret found" -ForegroundColor Green
     }
-    
+
+    Write-Host "" -ForegroundColor Green
     Write-Host "All secrets are configured!" -ForegroundColor Green
-    return $true
-}
-
-function Create-Secrets {
-    Write-Host "Secret Creation Helper" -ForegroundColor Yellow
-    Write-Host "This will guide you through creating all required secrets." -ForegroundColor Cyan
-    Write-Host ""
-    
-    # Twitch secrets
-    Write-Host "Creating Twitch secrets..." -ForegroundColor Cyan
-    $twitchClientId = Read-Host "Enter your Twitch Client ID"
-    $twitchClientSecret = Read-Host "Enter your Twitch Client Secret" -AsSecureString
-    $twitchEventSubSecret = Read-Host "Enter your Twitch EventSub Secret" -AsSecureString
-    
-    $twitchClientSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchClientSecret))
-    $twitchEventSubSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchEventSubSecret))
-    
-    kubectl create secret generic twitch-secrets `
-        --from-literal=client-id="$twitchClientId" `
-        --from-literal=client-secret="$twitchClientSecretPlain" `
-        --from-literal=eventsub-secret="$twitchEventSubSecretPlain"
-    
-    # Discord secrets
-    Write-Host "`nCreating Discord secrets..." -ForegroundColor Cyan
-    $discordToken = Read-Host "Enter your Discord Bot Token" -AsSecureString
-    $discordTokenPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($discordToken))
-    
-    kubectl create secret generic discord-secrets `
-        --from-literal=bot-token="$discordTokenPlain"
-    
-    # Database secrets
-    Write-Host "`nCreating Database secrets..." -ForegroundColor Cyan
-    $dbPassword = Read-Host "Enter your PostgreSQL password" -AsSecureString
-    $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
-    $dbConnectionName = Read-Host "Enter your PostgreSQL connection name" -AsSecureString
-    $dbConnectionNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbConnectionName))
-
-    kubectl create secret generic database-secrets `
-        --from-literal=postgres-password="$dbPasswordPlain" `
-        --from-literal=postgres-user="paintbot" `
-        --from-literal=postgres-db="paintbot" `
-        --from-literal=instanceConnectionName="$dbConnectionNamePlain"
-    
-    # Service Account
-    Write-Host "`nCreating Service Account secret..." -ForegroundColor Cyan
-    $keyPath = Read-Host "Enter path to your service account key.json file"
-    
-    if (Test-Path $keyPath) {
-        kubectl create secret generic paintbot-service-account `
-            --from-file=key.json="$keyPath"
-        Write-Host "✓ Service account secret created" -ForegroundColor Green
-    } else {
-        Write-Host "Service account key file not found at: $keyPath" -ForegroundColor Red
-    }
-    
-    Write-Host "`nAll secrets created successfully!" -ForegroundColor Green
     Write-Host "You can now run '.\deploy.ps1 deploy' to deploy your application." -ForegroundColor Cyan
+    return $true
 }
 
 # Main script logic
@@ -378,7 +339,7 @@ switch ($Command.ToLower()) {
         Setup-GKE
     }
     "create-secrets" {
-        Create-Secrets
+        Setup-And-Create-Secrets
     }
     "build" {
         Build-Images
@@ -387,6 +348,11 @@ switch ($Command.ToLower()) {
         Push-Images
     }
     "deploy" {
+        Deploy-ToGKE
+    }
+    "deploy-build" {
+        Build-Images
+        Push-Images
         Deploy-ToGKE
     }
     "deploy-dev" {
