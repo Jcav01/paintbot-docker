@@ -135,12 +135,6 @@ function Deploy-ToGKE {
         return
     }
     
-    # Apply ConfigMaps first (non-sensitive configuration)
-    if (Test-Path "k8s/twitch-env-configmap.yaml") {
-        Write-Host "Applying ConfigMaps..." -ForegroundColor Cyan
-        kubectl apply -f k8s/twitch-env-configmap.yaml
-    }
-    
     # Apply combined deployment and service files
     Write-Host "Applying deployments and services..." -ForegroundColor Cyan
     
@@ -193,10 +187,10 @@ function Deploy-Dev {
     if (-not $devSecretsExist) {
         Write-Host "Creating secrets in development namespace..." -ForegroundColor Yellow
         Write-Host "You may need to manually copy secrets to the development namespace:" -ForegroundColor Cyan
-        Write-Host "kubectl get secret twitch-secrets -o yaml | sed 's/namespace: .*/namespace: development/' | kubectl apply -f -" -ForegroundColor Cyan
-        Write-Host "kubectl get secret discord-secrets -o yaml | sed 's/namespace: .*/namespace: development/' | kubectl apply -f -" -ForegroundColor Cyan
-        Write-Host "kubectl get secret database-secrets -o yaml | sed 's/namespace: .*/namespace: development/' | kubectl apply -f -" -ForegroundColor Cyan
-        Write-Host "kubectl get secret paintbot-service-account -o yaml | sed 's/namespace: .*/namespace: development/' | kubectl apply -f -" -ForegroundColor Cyan
+        Write-Host "kubectl get secret twitch-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
+        Write-Host "kubectl get secret discord-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
+        Write-Host "kubectl get secret database-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
+        Write-Host "kubectl get secret paintbot-service-account -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
     }
     
     # Apply ConfigMaps to development namespace
@@ -204,14 +198,37 @@ function Deploy-Dev {
         kubectl apply -f k8s/twitch-env-configmap.yaml -n development
     }
     
-    # Apply deployments to development namespace (excluding secret YAML files)
-    Write-Host "Applying deployments to development namespace..." -ForegroundColor Cyan
     
-    $yamlFiles = Get-ChildItem "k8s/*.yaml" | Where-Object { $_.Name -notlike "*secret*.yaml" }
-    foreach ($file in $yamlFiles) {
-        kubectl apply -f $file.FullName -n development
+    # Apply combined deployment and service files
+    Write-Host "Applying deployments and services..." -ForegroundColor Cyan
+    
+    if (Test-Path "k8s/database-deployment.yaml") {
+        Write-Host "Deploying database..." -ForegroundColor Cyan
+        kubectl apply -f k8s/database-deployment.yaml -n development
     }
     
+    if (Test-Path "k8s/discord-deployment.yaml") {
+        Write-Host "Deploying discord..." -ForegroundColor Cyan
+        kubectl apply -f k8s/discord-deployment.yaml -n development
+    }
+    
+    if (Test-Path "k8s/twitch-deployment.yaml") {
+        Write-Host "Deploying twitch..." -ForegroundColor Cyan
+        kubectl apply -f k8s/twitch-deployment.yaml -n development
+    }
+    
+    # Apply YouTube if exists
+    if (Test-Path "k8s/youtube-deployment.yaml") {
+        Write-Host "Deploying youtube..." -ForegroundColor Cyan
+        kubectl apply -f k8s/youtube-deployment.yaml -n development
+    }
+    
+    # Wait for deployments to be ready in development namespace
+    Write-Host "Waiting for deployments to be ready in development namespace..." -ForegroundColor Yellow
+    kubectl wait --for=condition=available --timeout=300s deployment/database -n development
+    kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
+    kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+
     Write-Host "Development deployment complete!" -ForegroundColor Green
 }
 
@@ -356,6 +373,8 @@ switch ($Command.ToLower()) {
         Deploy-ToGKE
     }
     "deploy-dev" {
+        Build-Images
+        Push-Images
         Deploy-Dev
     }
     "status" {

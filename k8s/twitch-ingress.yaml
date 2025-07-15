@@ -11,9 +11,9 @@ kind: Ingress
 metadata:
   name: twitch-ingress
   annotations:
-    networking.gke.io/managed-certificates: twitch-ssl-cert
-    kubernetes.io/ingress.global-static-ip-name: paintbot-ip  # Optional: use reserved static IP
     kubernetes.io/ingress.class: "gce"
+    networking.gke.io/managed-certificates: twitch-ssl-cert
+    kubernetes.io/ingress.global-static-ip-name: paintbot-dev-ip  # Optional: use reserved static IP
 spec:
   rules:
   - host: dev.paintbot.net  # Replace with your domain

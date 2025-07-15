@@ -37,7 +37,7 @@ Choose **ONE** of these approaches:
 
 #### Option A: Google-Managed SSL (Recommended)
 ```bash
-# Edit k8s/twitch-ingress.yaml and replace 'paintbot.yourdomain.com' with your domain
+# Edit k8s/twitch-ingress.yaml and replace 'paintbot.net' with your domain
 kubectl apply -f k8s/twitch-ingress.yaml
 
 # Check certificate status (takes 5-15 minutes)
@@ -55,8 +55,6 @@ kubectl apply -f k8s/twitch-ingress-letsencrypt.yaml
 
 ### 4. Update Deployment Configuration
 ```bash
-# Edit k8s/twitch-deployment.yaml
-# Update TWITCH_HOSTNAME environment variable with your domain
 kubectl apply -f k8s/twitch-deployment.yaml
 ```
 
@@ -81,8 +79,7 @@ curl -I https://paintbot.yourdomain.com/webhooks/twitch/
 4. **Express App**: Handles the webhook at `/webhooks/twitch/stream.online`
 
 ### EventSub Configuration
-- **Development**: Uses ngrok for local testing
-- **Production**: Uses Express adapter with GKE ingress SSL termination
+- Uses Express adapter with GKE ingress SSL termination
 - **Webhook Base URL**: `https://your-domain.com/webhooks/twitch`
 
 ## Troubleshooting
@@ -120,14 +117,3 @@ kubectl logs deployment/twitch -f
 - All webhook traffic is encrypted in transit
 - Internal pod communication uses HTTP (encrypted by service mesh if enabled)
 - Webhook secret validation ensures authenticity
-
-## Webhook URLs
-After setup, your Twitch EventSub webhooks will be accessible at:
-- `https://paintbot.yourdomain.com/webhooks/twitch/stream.online`
-- `https://paintbot.yourdomain.com/webhooks/twitch/stream.offline`
-- `https://paintbot.yourdomain.com/webhooks/twitch/channel.update`
-
-## Environment Variables
-Required in your Twitch deployment:
-- `NODE_ENV`: `production`
-- `TWITCH_HOSTNAME`: Your domain name (used for webhook registration)
