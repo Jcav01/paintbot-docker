@@ -22,6 +22,6 @@
     "whatwg-url": "^14.2.0"
   },
   "devDependencies": {
-    "eslint": "^9.30.1"
+    "eslint": "^9.31.0"
   }
 }
