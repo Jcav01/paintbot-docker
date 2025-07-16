@@ -20,7 +20,7 @@ on:
 
 env:
   PROJECT_ID: paintbot
-  GKE_CLUSTER: paintbot-dev-cluster
+  GKE_CLUSTER: paintbot-cluster
   GKE_ZONE: northamerica-northeast1
   REGISTRY: northamerica-northeast1-docker.pkg.dev
   REGISTRY_PROJECT: paintbot
