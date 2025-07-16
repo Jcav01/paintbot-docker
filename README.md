@@ -1,6 +1,8 @@
-# Paintbot GKE Deployment
+# Paintbot
+[![Dependabot Updates](https://github.com/Jcav01/paintbot-docker/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Jcav01/paintbot-docker/actions/workflows/dependabot/dependabot-updates)
+[![Deployment](https://github.com/Jcav01/paintbot-docker/actions/workflows/deploy-to-gke.yaml/badge.svg)](https://github.com/Jcav01/paintbot-docker/actions/workflows/deploy-to-gke.yaml)
 
-This repository contains the Docker-based microservices architecture for Paintbot, with automated deployment to Google Kubernetes Engine (GKE) using GitHub Actions.
+This repository contains the Docker-based microservices architecture iteration of Paintbot, with automated deployment to Google Kubernetes Engine (GKE) using GitHub Actions.
 
 ## Architecture
 
