@@ -1,4 +1,4 @@
-FROM node:22
+FROM node:24
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -11,8 +11,6 @@ COPY package*.json ./
 RUN npm install
 # If you are building your code for production
 # RUN npm ci --omit=dev
-
-ENV GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/paintbot-3e5d5b0e2fe3
 
 # Bundle app source
 COPY ./src .
