@@ -14,6 +14,9 @@ on:
         options:
         - Development
         - Staging
+permissions:
+  id-token: write
+  contents: read
 
 env:
   PROJECT_ID: paintbot
