@@ -14,7 +14,7 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/pubsub": "^4.7.2"
+    "@google-cloud/pubsub": "^5.1.0"
   },
   "devDependencies": {
     "eslint": "^9.12.0"
