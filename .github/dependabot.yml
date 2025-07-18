@@ -2,10 +2,21 @@ version: 2
 updates:
   - package-ecosystem: npm
     target-branch: "develop"
-    directories:
-      - /database
-      - /discord
-      - /twitch
-      - /youtube
+    directory: "/discord"
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    target-branch: "develop"
+    directory: "/database"
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    target-branch: "develop"
+    directory: "/twitch"
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    target-branch: "develop"
+    directory: "/youtube"
     schedule:
       interval: weekly
