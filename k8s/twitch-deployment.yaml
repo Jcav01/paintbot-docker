@@ -28,11 +28,11 @@ spec:
           value: "production"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
+            memory: "128Mi"
+            cpu: "5m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "10m"
       volumes:
       - name: twitch-secrets
         secret:
