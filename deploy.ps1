@@ -373,6 +373,9 @@ switch ($Command.ToLower()) {
         Deploy-ToGKE
     }
     "deploy-dev" {
+        Deploy-Dev
+    }
+    "deploy-build-dev" {
         Build-Images
         Push-Images
         Deploy-Dev
