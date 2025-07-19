@@ -46,6 +46,9 @@ jobs:
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
 
+    - name: 'Install auth plugin'
+      run: 'gcloud components install gke-gcloud-auth-plugin --quiet'
+
     - name: Configure Docker to use gcloud as a credential helper
       run: |-
         gcloud auth configure-docker $REGISTRY --quiet
@@ -55,60 +58,84 @@ jobs:
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
     # Build and push Docker images with dev tag
-    - name: Build and Push Images for Development
+    - name: Build and Push Database Image
       run: |-
-        # Database
         cd database
-        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA" .
-        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA"
-        
-        # Discord
-        cd ../discord
-        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA" .
-        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA"
-        
-        # Twitch
-        cd ../twitch
-        docker build --build-arg NODE_ENV=development -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA" .
-        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA"
+        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA"
+        docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
 
-    # Deploy to development namespace
-    - name: Create development namespace
+    - name: Build and Push Discord Image
       run: |-
-        kubectl create namespace development --dry-run=client -o yaml | kubectl apply -f -
+        cd discord
+        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA"
+        docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
 
-    - name: Copy secrets to development namespace
+    - name: Build and Push Twitch Image
       run: |-
-        # Copy secrets from default namespace to development namespace
-        echo "Copying secrets to development namespace..."
-        
-        # Check if secrets exist in default namespace first
-        kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found in default namespace" && exit 1)
-        kubectl get secret discord-secrets || (echo "❌ discord-secrets not found in default namespace" && exit 1)
-        kubectl get secret database-secrets || (echo "❌ database-secrets not found in default namespace" && exit 1)
-        kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found in default namespace" && exit 1)
-        
-        # Copy secrets to development namespace
-        kubectl get secret twitch-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
-        kubectl get secret discord-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
-        kubectl get secret database-secrets -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
-        kubectl get secret paintbot-service-account -o yaml | sed 's/namespace: default/namespace: development/' | kubectl apply -f -
+        cd twitch
+        docker build --build-arg NODE_ENV=production -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA"
+        docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
 
-    - name: Deploy to Development Namespace
+    - name: Build and Push YouTube Image (if exists)
       run: |-
-        # Update deployment files with dev images and apply to development namespace
-        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:dev-$GITHUB_SHA|g" k8s/database-deployment.yaml | kubectl apply -f - -n development
-        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/discord:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:dev-$GITHUB_SHA|g" k8s/discord-deployment.yaml | kubectl apply -f - -n development
-        sed "s|northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest|$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:dev-$GITHUB_SHA|g" k8s/twitch-deployment.yaml | kubectl apply -f - -n development
+        if [ -f youtube/Dockerfile ]; then
+          cd youtube
+          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" .
+          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
+          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
+          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
+        else
+          echo "YouTube Dockerfile not found, skipping..."
+        fi
 
-    - name: Verify Development Deployment
+    # Verify secrets exist before deployment
+    - name: Verify Kubernetes Secrets Exist
       run: |-
+        echo "Checking for required secrets..."
+        kubectl get secret twitch-secrets -n development || (echo "❌ twitch-secrets not found" && exit 1)
+        kubectl get secret discord-secrets -n development || (echo "❌ discord-secrets not found" && exit 1)
+        kubectl get secret database-secrets -n development || (echo "❌ database-secrets not found" && exit 1)
+        kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
+        echo "✅ All required secrets found"
+
+    # Deploy to GKE using combined deployment files
+    - name: Deploy to GKE
+      run: |-
+        # Apply combined deployment and service files
+        kubectl apply -f k8s/database-deployment.yaml -n development
+        kubectl apply -f k8s/discord-deployment.yaml -n development
+        kubectl apply -f k8s/twitch-deployment.yaml -n development
+
+    - name: Verify deployment
+      run: |-
+        # Wait for deployments to be ready
         kubectl wait --for=condition=available --timeout=300s deployment/database -n development
         kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
         kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+
+        # Show deployment status
+        kubectl get deployments -n development
         kubectl get pods -n development
-        kubectl get services -n development
-        kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
-        kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
-        kubectl get pods -n development
-        kubectl get services -n development
+        kubectl get services -o wide -n development
+
+    # Update deployment with new image tags
+    - name: Update Database deployment image
+      run: |-
+        kubectl set image deployment/database database="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" -n development
+        kubectl rollout status deployment/database -n development
+
+    - name: Update Discord deployment image
+      run: |-
+        kubectl set image deployment/discord discord="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" -n development
+        kubectl rollout status deployment/discord -n development
+
+    - name: Update Twitch deployment image
+      run: |-
+        kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" -n development
+        kubectl rollout status deployment/twitch -n development
