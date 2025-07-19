@@ -35,10 +35,10 @@ spec:
           value: "paintbot:northamerica-northeast1:paintbot-db"
         resources:
           requests:
-            memory: "128Mi"
+            memory: "96Mi"
             cpu: "5m"
           limits:
-            memory: "256Mi"
+            memory: "96Mi"
             cpu: "10m"
       volumes:
       - name: database-secrets
