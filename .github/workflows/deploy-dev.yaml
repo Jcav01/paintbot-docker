@@ -42,10 +42,12 @@ jobs:
       with:
         project_id: '${{ vars.GKE_PROJECT_ID }}'
         workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
-        service_account: '${{ secrets.GKE_SA_EMAIL }}'
 
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Install auth plugin'
+      run: 'gcloud components install gke-gcloud-auth-plugin --quiet'
 
     - name: Configure Docker to use gcloud as a credential helper
       run: |-
