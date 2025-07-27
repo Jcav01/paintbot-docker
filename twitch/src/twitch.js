@@ -330,7 +330,7 @@ async function handleChannelUpdate(event) {
 		}
 	}
 
-	addHistory(event.broadcasterId, 'channel.update', event);
+	addHistory(event.broadcasterId, 'channel.update', JSON.stringify(event));
 }
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
@@ -365,11 +365,11 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 	});
 }
 
-function addHistory(sourceId, notificationType, event = null) {
+function addHistory(sourceId, notificationType, eventJson = null) {
 	const history_data = JSON.stringify({
 		sourceId: sourceId,
 		notificationType: notificationType,
-		notificationInfo: event,
+		notificationInfo: eventJson,
 	});
 	const history_options = {
 		host: 'database',
