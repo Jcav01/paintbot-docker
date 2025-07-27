@@ -330,7 +330,7 @@ async function handleChannelUpdate(event) {
 		}
 	}
 
-	addHistory(event.broadcasterId, 'channel.update', JSON.stringify(event));
+	addHistory(event.broadcasterId, 'channel.update', JSON.stringify(Object.assign({}, event)));
 }
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
