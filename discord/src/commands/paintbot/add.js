@@ -38,7 +38,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The Youtube channel\'s handle.')
+						.setDescription('The Youtube channel\'s handle. With or without @ (Example: @ConeDodger)')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option

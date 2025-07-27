@@ -4,7 +4,6 @@ import { EventSubMiddleware } from '@twurple/eventsub-http';
 import * as fs from 'fs';
 import * as http from 'http';
 import express from 'express';
-import * as url from 'whatwg-url';
 const app = express();
 
 app.post('/add', express.json(), async (req, res) => {
@@ -17,7 +16,6 @@ app.post('/add', express.json(), async (req, res) => {
 			source_url: req.body.source_url,
 			source_id: user.id,
 			channel_id: req.body.discord_channel,
-			source_id: user.id,
 			minimum_interval: req.body.interval,
 			highlight_colour: req.body.highlight,
 			message: req.body.message,

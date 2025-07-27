@@ -18,8 +18,7 @@
     "@twurple/auth": "^7.3.0",
     "@twurple/eventsub-http": "^7.3.0",
     "@twurple/eventsub-ngrok": "^7.3.0",
-    "express": "^5.1.0",
-    "whatwg-url": "^14.2.0"
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "eslint": "^9.31.0"
