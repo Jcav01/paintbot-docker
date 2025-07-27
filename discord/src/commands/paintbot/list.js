@@ -16,10 +16,10 @@ module.exports = {
         console.log('Status Code:', res.status);
         const data = await res.json();
 
-        const dataArr = [['Source ID', 'Source URL', 'Minimum Interval', 'Highlight Colour']];
+        const dataArr = [['ID', 'Username', 'Minimum Interval', 'Highlight Colour']];
         const transformedData = data.map(element => [
             element.source_id,
-            element.source_url,
+            element.source_username,
             element.minimum_interval ?? 0,
             Buffer.from(element.highlight_colour.data).toString(),
         ]);

@@ -31,7 +31,7 @@ module.exports = {
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
-				source_url: interaction.options.getString('channel')
+				source_username: interaction.options.getString('channel')
 			});
 			const request_options = {
 				host: 'twitch',

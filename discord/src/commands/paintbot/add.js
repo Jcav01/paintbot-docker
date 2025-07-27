@@ -61,7 +61,7 @@ module.exports = {
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
-				source_url: interaction.options.getString('channel'),
+				source_username: interaction.options.getString('channel'),
 				interval: interaction.options.getNumber('interval'),
 				highlight: interaction.options.getString('highlight') || '9146FF',
 				message: interaction.options.getString('message'),
