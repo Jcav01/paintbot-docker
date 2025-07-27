@@ -14,7 +14,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Twitch channel. (Example: https://www.twitch.tv/jcav)')
+						.setDescription('The username for the Twitch channel. (Example: jcav)')
 						.setRequired(true)))
 		.addSubcommand(subcommand =>
 			subcommand
@@ -23,7 +23,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Youtube channel.')
+						.setDescription('The Youtube channel\'s handle.')
 						.setRequired(true))),
 	async execute(interaction) {
 		// Extends the interaction timeout to 15 minutes

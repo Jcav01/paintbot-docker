@@ -35,7 +35,7 @@ app.route('/source/:source')
 
 app.post('/source', async (req, res) => {
 	console.log('Received request to add source:', req.body.source_id);
-	const result = await db.query('INSERT INTO sources (source_id, notification_source, source_url) VALUES($1, $2, $3) RETURNING source_id', [req.body.source_id, req.body.notification_source, req.body.source_url]);
+	const result = await db.query('INSERT INTO sources (source_id, notification_source, source_username) VALUES($1, $2, $3) RETURNING source_id', [req.body.source_id, req.body.notification_source, req.body.source_username]);
 	res.json(result.rows);
 });
 
@@ -90,7 +90,7 @@ app.post('/destination', async (req, res) => {
 		const client = await db.getClient();
 		try {
 			client.query('BEGIN');
-			client.query('INSERT INTO sources (source_id, notification_source, source_url) VALUES($1, $2, $3)', [req.body.source_id, req.body.notification_source, req.body.source_url]);
+			client.query('INSERT INTO sources (source_id, notification_source, source_username) VALUES($1, $2, $3)', [req.body.source_id, req.body.notification_source, req.body.source_username]);
 			result = client.query('INSERT INTO destinations (channel_id, source_id, minimum_interval, highlight_colour, notification_message) VALUES($1, $2, $3, $4, $5) RETURNING channel_id', [req.body.channel_id, req.body.source_id, req.body.minimum_interval, req.body.highlight_colour, req.body.message]);
 			client.query('COMMIT');
 		} catch (error) {

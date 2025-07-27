@@ -16,7 +16,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: twitch-ingress-letsencrypt
+  name: paintbot-ingress-letsencrypt
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     kubernetes.io/ingress.class: nginx

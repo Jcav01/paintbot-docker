@@ -11,15 +11,7 @@ app.post('/add', express.json(), async (req, res) => {
 	console.log('Received request to add Twitch source:', req.body);
 	await waitfordb('http://database:8002');
 
-	let username;
-	try {
-		username = url.parseURL(req.body.source_url).path[0];
-	} catch (error) {
-		console.error(error);
-		res.status(400).send({ message: 'Invalid source URL' });
-		return;
-	}
-	apiClient.users.getUserByName(username).then(async user => {
+	apiClient.users.getUserByName(req.body.source_username).then(async user => {
 		const data = JSON.stringify({
 			notification_source: 'twitch',
 			source_url: req.body.source_url,
@@ -60,18 +52,10 @@ app.post('/add', express.json(), async (req, res) => {
 	});
 });
 app.delete('/remove', express.json(), async (req, res) => {
-	console.log('Received request to remove Twitch source:', req.body.source_url, 'for channel', req.body.discord_channel);
+	console.log('Received request to remove Twitch source:', req.body.source_username, 'for channel', req.body.discord_channel);
 	await waitfordb('http://database:8002');
 
-	let username;
-	try {
-		username = url.parseURL(req.body.source_url).path[0];
-	} catch (error) {
-		console.error(error);
-		res.status(400).send({ message: 'Invalid source URL' });
-		return;
-	}
-	apiClient.users.getUserByName(username).then(async user => {
+	apiClient.users.getUserByName(req.body.source_username).then(async user => {
 		const subscription = subs.find(element => element.source === user.id);
 		if (!subscription) {
 			res.status(404).send({ message: 'Source not found' });
