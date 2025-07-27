@@ -13,7 +13,7 @@ app.post('/add', express.json(), async (req, res) => {
 	apiClient.users.getUserByName(req.body.source_username).then(async user => {
 		const data = JSON.stringify({
 			notification_source: 'twitch',
-			source_url: req.body.source_url,
+			source_username: req.body.source_username,
 			source_id: user.id,
 			channel_id: req.body.discord_channel,
 			minimum_interval: req.body.interval,
