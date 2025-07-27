@@ -329,8 +329,15 @@ async function handleChannelUpdate(event) {
 			console.error(error);
 		}
 	}
-
-	addHistory(event.broadcasterId, 'channel.update', JSON.stringify(Object.assign({}, event)));
+	
+	const eventInfo = {
+		broadcasterId: event.broadcasterId,
+		streamTitle: event.streamTitle,
+		categoryId: event.categoryId,
+		categoryName: event.categoryName,
+		contentClassificationLabels: event.contentClassificationLabels
+	};
+	addHistory(event.broadcasterId, 'channel.update', eventInfo);
 }
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
@@ -365,11 +372,11 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 	});
 }
 
-function addHistory(sourceId, notificationType, eventJson = null) {
+function addHistory(sourceId, notificationType, info = null) {
 	const history_data = JSON.stringify({
 		sourceId: sourceId,
 		notificationType: notificationType,
-		notificationInfo: eventJson,
+		notificationInfo: info,
 	});
 	const history_options = {
 		host: 'database',
