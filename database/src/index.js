@@ -60,7 +60,7 @@ app.get('/notifications/history/:source/:type', async (req, res) => {
 
 app.post('/notifications/history', async (req, res) => {
 	console.log('Received request to add record to notification history');
-	const result = await db.query('INSERT INTO past_notifications (source_id, notification_type) VALUES($1, $2)', [req.body.sourceId, req.body.notificationType]);
+	const result = await db.query('INSERT INTO past_notifications (source_id, notification_type, notification_info) VALUES($1, $2, $3)', [req.body.sourceId, req.body.notificationType, req.body.notificationInfo]);
 	res.json(result.rows);
 });
 

@@ -280,24 +280,24 @@ async function handleStreamOffline(broadcasterId) {
 	addHistory(broadcasterId, 'stream.offline');
 }
 
-async function handleChannelUpdate(broadcasterId) {
-	console.log(`Twitch channel updated: ${broadcasterId}`);
+async function handleChannelUpdate(event) {
+	console.log(`Twitch channel updated: ${event.broadcasterId}`);
 
 	// Get the last notification for the source
-	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${broadcasterId}`);
+	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${event.broadcasterId}`);
 	const lastNotif = await lastNotifRes.json();
 	console.table(lastNotif);
 
 	if (lastNotif[0].notification_type === 'stream.online') {
 		// Get the list of destinations to post to
-		const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
+		const destinationRes = await fetch(`http://database:8002/destinations/source/${event.broadcasterId}`);
 		const destinations = await destinationRes.json();
 		console.table(destinations);
 
 		// Create an object to POST to the Discord webhook
 		const embed_data = JSON.stringify({
 			channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, messageId: destination.last_message_id, notification_message: destination.notification_message }; }),
-			embed: await formatEmbed(broadcasterId),
+			embed: await formatEmbed(event.broadcasterId),
 		});
 
 		// An object of options to indicate where to post to
@@ -318,7 +318,7 @@ async function handleChannelUpdate(broadcasterId) {
 		const online_options = {
 			host: 'database',
 			port: '8002',
-			path: `/source/${broadcasterId}?isOnline=true`,
+			path: `/source/${event.broadcasterId}?isOnline=true`,
 			method: 'PUT',
 		};
 		const online_req = http.request(online_options);
@@ -330,7 +330,7 @@ async function handleChannelUpdate(broadcasterId) {
 		}
 	}
 
-	addHistory(broadcasterId, 'channel.update');
+	addHistory(event.broadcasterId, 'channel.update', event);
 }
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
@@ -365,10 +365,11 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 	});
 }
 
-function addHistory(sourceId, notificationType) {
+function addHistory(sourceId, notificationType, event = null) {
 	const history_data = JSON.stringify({
 		sourceId: sourceId,
 		notificationType: notificationType,
+		notificationInfo: event,
 	});
 	const history_options = {
 		host: 'database',
@@ -389,7 +390,7 @@ function addEvents(sourceId) {
 	subs.push({source: sourceId, subscriptions: [
 		twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId)),
 		twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId)),
-		twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId))
+		twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e))
 	]});
 }
 
