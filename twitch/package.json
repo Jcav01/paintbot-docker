@@ -14,7 +14,7 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@twurple/api": "^7.3.0",
+    "@twurple/api": "^7.4.0",
     "@twurple/auth": "^7.3.0",
     "@twurple/eventsub-http": "^7.3.0",
     "@twurple/eventsub-ngrok": "^7.3.0",
