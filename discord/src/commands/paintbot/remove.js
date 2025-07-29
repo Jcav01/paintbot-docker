@@ -14,7 +14,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Twitch channel. (Example: https://www.twitch.tv/jcav)')
+						.setDescription('The username for the Twitch channel. (Example: jcav)')
 						.setRequired(true)))
 		.addSubcommand(subcommand =>
 			subcommand
@@ -23,7 +23,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Youtube channel.')
+						.setDescription('The Youtube channel\'s handle.')
 						.setRequired(true))),
 	async execute(interaction) {
 		// Extends the interaction timeout to 15 minutes
@@ -31,7 +31,7 @@ module.exports = {
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
-				source_url: interaction.options.getString('channel')
+				source_username: interaction.options.getString('channel')
 			});
 			const request_options = {
 				host: 'twitch',

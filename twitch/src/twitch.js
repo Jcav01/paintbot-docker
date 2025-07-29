@@ -4,28 +4,18 @@ import { EventSubMiddleware } from '@twurple/eventsub-http';
 import * as fs from 'fs';
 import * as http from 'http';
 import express from 'express';
-import * as url from 'whatwg-url';
 const app = express();
 
 app.post('/add', express.json(), async (req, res) => {
 	console.log('Received request to add Twitch source:', req.body);
 	await waitfordb('http://database:8002');
 
-	let username;
-	try {
-		username = url.parseURL(req.body.source_url).path[0];
-	} catch (error) {
-		console.error(error);
-		res.status(400).send({ message: 'Invalid source URL' });
-		return;
-	}
-	apiClient.users.getUserByName(username).then(async user => {
+	apiClient.users.getUserByName(req.body.source_username).then(async user => {
 		const data = JSON.stringify({
 			notification_source: 'twitch',
-			source_url: req.body.source_url,
+			source_username: req.body.source_username,
 			source_id: user.id,
 			channel_id: req.body.discord_channel,
-			source_id: user.id,
 			minimum_interval: req.body.interval,
 			highlight_colour: req.body.highlight,
 			message: req.body.message,
@@ -60,18 +50,10 @@ app.post('/add', express.json(), async (req, res) => {
 	});
 });
 app.delete('/remove', express.json(), async (req, res) => {
-	console.log('Received request to remove Twitch source:', req.body.source_url, 'for channel', req.body.discord_channel);
+	console.log('Received request to remove Twitch source:', req.body.source_username, 'for channel', req.body.discord_channel);
 	await waitfordb('http://database:8002');
 
-	let username;
-	try {
-		username = url.parseURL(req.body.source_url).path[0];
-	} catch (error) {
-		console.error(error);
-		res.status(400).send({ message: 'Invalid source URL' });
-		return;
-	}
-	apiClient.users.getUserByName(username).then(async user => {
+	apiClient.users.getUserByName(req.body.source_username).then(async user => {
 		const subscription = subs.find(element => element.source === user.id);
 		if (!subscription) {
 			res.status(404).send({ message: 'Source not found' });
@@ -298,24 +280,24 @@ async function handleStreamOffline(broadcasterId) {
 	addHistory(broadcasterId, 'stream.offline');
 }
 
-async function handleChannelUpdate(broadcasterId) {
-	console.log(`Twitch channel updated: ${broadcasterId}`);
+async function handleChannelUpdate(event) {
+	console.log(`Twitch channel updated: ${event.broadcasterId}`);
 
 	// Get the last notification for the source
-	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${broadcasterId}`);
+	const lastNotifRes = await fetch(`http://database:8002/notifications/history/${event.broadcasterId}`);
 	const lastNotif = await lastNotifRes.json();
 	console.table(lastNotif);
 
 	if (lastNotif[0].notification_type === 'stream.online') {
 		// Get the list of destinations to post to
-		const destinationRes = await fetch(`http://database:8002/destinations/source/${broadcasterId}`);
+		const destinationRes = await fetch(`http://database:8002/destinations/source/${event.broadcasterId}`);
 		const destinations = await destinationRes.json();
 		console.table(destinations);
 
 		// Create an object to POST to the Discord webhook
 		const embed_data = JSON.stringify({
 			channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, messageId: destination.last_message_id, notification_message: destination.notification_message }; }),
-			embed: await formatEmbed(broadcasterId),
+			embed: await formatEmbed(event.broadcasterId),
 		});
 
 		// An object of options to indicate where to post to
@@ -336,7 +318,7 @@ async function handleChannelUpdate(broadcasterId) {
 		const online_options = {
 			host: 'database',
 			port: '8002',
-			path: `/source/${broadcasterId}?isOnline=true`,
+			path: `/source/${event.broadcasterId}?isOnline=true`,
 			method: 'PUT',
 		};
 		const online_req = http.request(online_options);
@@ -347,8 +329,15 @@ async function handleChannelUpdate(broadcasterId) {
 			console.error(error);
 		}
 	}
-
-	addHistory(broadcasterId, 'channel.update');
+	
+	const eventInfo = {
+		broadcasterId: event.broadcasterId,
+		streamTitle: event.streamTitle,
+		categoryId: event.categoryId,
+		categoryName: event.categoryName,
+		contentClassificationLabels: event.contentClassificationLabels
+	};
+	addHistory(event.broadcasterId, 'channel.update', eventInfo);
 }
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
@@ -383,10 +372,11 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 	});
 }
 
-function addHistory(sourceId, notificationType) {
+function addHistory(sourceId, notificationType, info = null) {
 	const history_data = JSON.stringify({
 		sourceId: sourceId,
 		notificationType: notificationType,
+		notificationInfo: info,
 	});
 	const history_options = {
 		host: 'database',
@@ -407,7 +397,7 @@ function addEvents(sourceId) {
 	subs.push({source: sourceId, subscriptions: [
 		twitchListener.onStreamOnline(sourceId, e => handleStreamOnline(e.broadcasterId)),
 		twitchListener.onStreamOffline(sourceId, e => handleStreamOffline(e.broadcasterId)),
-		twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e.broadcasterId))
+		twitchListener.onChannelUpdate(sourceId, e => handleChannelUpdate(e))
 	]});
 }
 

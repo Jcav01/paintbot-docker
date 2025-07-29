@@ -14,7 +14,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Twitch channel. (Example: https://www.twitch.tv/jcav)')
+						.setDescription('The username for the Twitch channel. (Example: jcav)')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
@@ -38,7 +38,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The URL of the Youtube channel.')
+						.setDescription('The Youtube channel\'s handle. With or without @ (Example: @ConeDodger)')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
@@ -61,7 +61,7 @@ module.exports = {
 		if (interaction.options.getSubcommand() === 'twitch') {
 			const options = JSON.stringify({
 				discord_channel: interaction.channelId,
-				source_url: interaction.options.getString('channel'),
+				source_username: interaction.options.getString('channel'),
 				interval: interaction.options.getNumber('interval'),
 				highlight: interaction.options.getString('highlight') || '9146FF',
 				message: interaction.options.getString('message'),
