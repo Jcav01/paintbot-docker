@@ -5,38 +5,18 @@ updates:
     directory: "/discord"
     schedule:
       interval: "weekly"
-    groups:
-      production-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/database"
     schedule:
       interval: "weekly"
-    groups:
-      production-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/twitch"
     schedule:
       interval: "weekly"
-    groups:
-      production-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/youtube"
     schedule:
       interval: "weekly"
-    groups:
-      production-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
