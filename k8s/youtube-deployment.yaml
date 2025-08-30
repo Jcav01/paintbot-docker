@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube
+  labels:
+    app: youtube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: youtube
+  template:
+    metadata:
+      labels:
+        app: youtube
+    spec:
+      containers:
+      - name: youtube
+        image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/youtube:latest
+        ports:
+        - containerPort: 8005
+        volumeMounts:
+        - name: youtube-secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        env:
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "5m"
+          limits:
+            memory: "96Mi"
+            cpu: "10m"
+      volumes:
+      - name: youtube-secrets
+        secret:
+          secretName: youtube-secrets
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: youtube
+spec:
+  selector:
+    app: youtube
+  ports:
+  - port: 8005
+    targetPort: 8005
+  type: ClusterIP

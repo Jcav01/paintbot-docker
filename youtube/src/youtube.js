@@ -142,6 +142,12 @@ catch (err) {
 }
 let subs = [];
 
+app.listen(8005, async () => {
+	console.log('YouTube is listening on port 8005');
+	// Kick off sync to ensure (re)subscriptions
+	try { await syncEventSubSubscriptions(); } catch (e) { console.error('YouTube sync failed:', e.message); }
+});
+
 
 
 

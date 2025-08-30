@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:24
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -13,7 +13,7 @@ RUN npm install
 # RUN npm ci --omit=dev
 
 # Bundle app source
-COPY . .
+COPY ./src .
 
-EXPOSE 3000
-CMD [ "node", "twitch.js" ]
+EXPOSE 8005
+CMD [ "node", "youtube.js" ]
