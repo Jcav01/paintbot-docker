@@ -82,17 +82,13 @@ jobs:
         docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
         docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
 
-    - name: Build and Push YouTube Image (if exists)
+    - name: Build and Push YouTube Image
       run: |-
-        if [ -f youtube/Dockerfile ]; then
-          cd youtube
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-        else
-          echo "YouTube Dockerfile not found, skipping..."
-        fi
+        cd youtube
+        docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" .
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
+        docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
+        docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
 
     # Verify secrets exist before deployment
     - name: Verify Kubernetes Secrets Exist
@@ -101,6 +97,7 @@ jobs:
         kubectl get secret twitch-secrets -n development || (echo "❌ twitch-secrets not found" && exit 1)
         kubectl get secret discord-secrets -n development || (echo "❌ discord-secrets not found" && exit 1)
         kubectl get secret database-secrets -n development || (echo "❌ database-secrets not found" && exit 1)
+        kubectl get secret youtube-secrets -n development || (echo "❌ youtube-secrets not found" && exit 1)
         kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
         echo "✅ All required secrets found"
 
@@ -111,6 +108,7 @@ jobs:
         kubectl apply -f k8s/database-deployment.yaml -n development
         kubectl apply -f k8s/discord-deployment.yaml -n development
         kubectl apply -f k8s/twitch-deployment.yaml -n development
+        kubectl apply -f k8s/youtube-deployment.yaml -n development
 
     - name: Verify deployment
       run: |-
@@ -118,6 +116,7 @@ jobs:
         kubectl wait --for=condition=available --timeout=300s deployment/database -n development
         kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
         kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+        kubectl wait --for=condition=available --timeout=300s deployment/youtube -n development
 
         # Show deployment status
         kubectl get deployments -n development
@@ -139,3 +138,8 @@ jobs:
       run: |-
         kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" -n development
         kubectl rollout status deployment/twitch -n development
+
+    - name: Update YouTube deployment image
+      run: |-
+        kubectl set image deployment/youtube youtube="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" -n development
+        kubectl rollout status deployment/youtube -n development
