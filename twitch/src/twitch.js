@@ -129,6 +129,8 @@ catch (err) {
 	console.log(err.message);
 }
 
+let subs = [];
+
 app.listen(8004, async () => {
 	await twitchListener.markAsReady();
 	console.log('Twitch is listening on port 8004');
