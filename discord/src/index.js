@@ -107,6 +107,20 @@ app.post('/embed/send', async (req, res) => {
 });
 
 // Handle requests from other services to post notifications
+app.post('/message/send', async (req, res) => {
+	console.log(JSON.stringify(req.body.message));
+	const messages = [];
+	await Promise.all(req.body.channelInfo.map(async info => {
+		const channel = client.channels.cache.get(info.channelId);
+
+		await channel.send({ content: `${info.notification_message} ${req.body.message}` })
+			.then(message => messages.push({ messageId: message.id, channelId: info.channelId }));
+	}));
+
+	res.send(messages);
+});
+
+// Handle requests from other services to post notifications
 app.post('/embed/edit', (req, res) => {
 	req.body.channelInfo.forEach(info => {
 		const channel = client.channels.cache.get(info.channelId);
