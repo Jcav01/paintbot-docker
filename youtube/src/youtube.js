@@ -9,102 +9,122 @@ const app = express();
 // In Kubernetes, secrets are mounted as individual files in a directory
 const secretsPath = '/etc/secrets';
 const youtube = new youtube_v3.Youtube({
-  auth: fs.readFileSync(`${secretsPath}/youtube-api-key`, 'utf8').trim()
+	// TODO: Switch to service account to remove need for referer
+	auth: fs.readFileSync(`${secretsPath}/youtube-api-key`, 'utf8').trim(),
+	headers: {
+		referer: 'https://dev.paintbot.net'
+	}
 });
-
 
 app.post('/add', express.json(), async (req, res) => {
 	console.log('Received request to add Youtube source:', req.body);
-	await waitfordb('http://database:8002');
+	try {
+		await waitfordb('http://database:8002');
 
-	youtube.channels.list({
-		part: 'id',
-		forHandle: req.body.source_username
-	}).then(async response => {
-		const user = response.data.items[0];
+		const handle = (req.body.source_username || '').replace(/^@/, '');
+		const response = await youtube.channels.list({
+			part: 'id',
+			forHandle: handle,
+		});
+
+		const user = response.data.items?.[0];
 		if (!user) {
-			res.status(404).send({ message: 'User not found' });
-			return;
+			return res.status(404).send({ message: 'User not found' });
 		}
+
 		const data = JSON.stringify({
 			notification_source: 'youtube',
-			source_username: req.body.source_username,
+			source_username: handle,
 			source_id: user.id,
 			channel_id: req.body.discord_channel,
 			minimum_interval: req.body.interval,
 			highlight_colour: req.body.highlight,
 			message: req.body.message,
 		});
-		const options = {
-			host: 'database',
-			port: '8002',
-			path: '/destination',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Content-Length': Buffer.byteLength(data),
-			},
-		};
-		const source_req = http.request(options, (source_res) => {
-			// The response has been received.
-			if (source_res.statusCode !== 200) {
-				res.status(source_res.statusCode).send({ message: source_res.message });
-				return;
-			}
 
-				// Subscribe this channel to YouTube WebSub notifications
-				setupYouTubeNotification({ source_id: user.id })
-					.then(() => console.log('Requested WebSub subscription for', user.id))
-					.catch(err => console.error('Failed to request WebSub subscription:', err));
-
-			res.send();
+		await new Promise((resolve, reject) => {
+			const options = {
+				host: 'database',
+				port: '8002',
+				path: '/destination',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': Buffer.byteLength(data),
+				},
+			};
+			const source_req = http.request(options, (source_res) => {
+				let body = '';
+				source_res.on('data', c => (body += c));
+				source_res.on('end', () => {
+					if (source_res.statusCode !== 200) {
+						console.error('DB /destination failed:', source_res.statusCode, body);
+						return reject(new Error(`DB responded ${source_res.statusCode}`));
+					}
+					resolve();
+				});
+			});
+			source_req.on('error', reject);
+			source_req.write(data);
+			source_req.end();
 		});
-		source_req.write(data);
-		source_req.end();
-	});
+
+		setupYouTubeNotification({ source_id: user.id })
+			.then(() => console.log('Requested WebSub subscription for', user.id))
+			.catch(err => console.error('Failed to request WebSub subscription:', err));
+
+		return res.send();
+	} catch (err) {
+		console.error('YouTube /add failed:', err.message);
+		if (!res.headersSent) {
+			return res.status(500).send({ message: 'Internal server error' });
+		}
+	}
 });
 app.delete('/remove', express.json(), async (req, res) => {
 	console.log('Received request to remove Youtube source:', req.body.source_username, 'for channel', req.body.discord_channel);
-	await waitfordb('http://database:8002');
+	try {
+		await waitfordb('http://database:8002');
 
-	youtube.channels.list({
-		part: 'id',
-		forHandle: req.body.source_username
-	}).then(async response => {
-		const user = response.data.items[0];
-		if (!user) {
-			res.status(404).send({ message: 'User not found' });
-			return;
-		}
-		const subscription = subs.find(element => element.source === user.id);
-		if (!subscription) {
-			res.status(404).send({ message: 'Source not found' });
-			return;
-		}
-		// Remove the destination from the database
-		const options = {
-			host: 'database',
-			port: '8002',
-			path: `/destination/${req.body.discord_channel}/${user.id}`,
-			method: 'DELETE',
-		};
-		const delete_req = http.request(options, (destination_res) => {
-			// The response has been received.
-			if (destination_res.statusCode !== 200) {
-				res.status(destination_res.statusCode).send({ message: destination_res.message });
-				return;
-			}
-
-			// Stop listening for events for the removed source
-			subscription.subscriptions.forEach(sub => {
-				sub.stop();
-				subs.splice(subs.indexOf(subscription), 1);
-			});
-
-			res.send();
+		const handle = (req.body.source_username || '').replace(/^@/, '');
+		const response = await youtube.channels.list({
+			part: 'id',
+			forHandle: handle,
 		});
-		delete_req.end();
-	});
+
+		const user = response.data.items?.[0];
+		if (!user) {
+			return res.status(404).send({ message: 'User not found' });
+		}
+
+		await new Promise((resolve, reject) => {
+			const options = {
+				host: 'database',
+				port: '8002',
+				path: `/destination/${req.body.discord_channel}/${user.id}`,
+				method: 'DELETE',
+			};
+			const delete_req = http.request(options, (destination_res) => {
+				let body = '';
+				destination_res.on('data', c => (body += c));
+				destination_res.on('end', () => {
+					if (destination_res.statusCode !== 200) {
+						console.error('DB delete failed:', destination_res.statusCode, body);
+						return reject(new Error(`DB responded ${destination_res.statusCode}`));
+					}
+					resolve();
+				});
+			});
+			delete_req.on('error', reject);
+			delete_req.end();
+		});
+		return res.send();
+	} catch (err) {
+		console.error('YouTube /remove failed:', err.message);
+		if (!res.headersSent) {
+			return res.status(500).send({ message: 'Internal server error' });
+		}
+	}
 });
 app.get('/', (req, res) => {
 	res.status(200).send('OK');
