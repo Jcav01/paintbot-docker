@@ -14,7 +14,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The username for the Twitch channel. (Example: jcav)')
+						.setDescription('The username for the Twitch channel.')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
@@ -38,7 +38,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The Youtube channel\'s handle. With or without @ (Example: @ConeDodger)')
+						.setDescription('The Youtube channel\'s handle. With or without @.')
 						.setRequired(true))
 				.addNumberOption(option =>
 					option
@@ -87,7 +87,32 @@ module.exports = {
 			req.end();
 		}
 		else if (interaction.options.getSubcommand() === 'youtube') {
-			await interaction.editReply({ content: `Adding Youtube notification for ${interaction.options.getString('channel')}.` });
+			const options = JSON.stringify({
+				discord_channel: interaction.channelId,
+				source_username: interaction.options.getString('channel'),
+				interval: interaction.options.getNumber('interval'),
+				highlight: interaction.options.getString('highlight') || '9146FF',
+				message: interaction.options.getString('message'),
+			});
+			const request_options = {
+				host: 'youtube',
+				port: '8005',
+				path: '/add',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': Buffer.byteLength(options),
+				},
+			};
+			const req = http.request(request_options, async (res) => {
+				if (res.statusCode !== 200) {
+					await interaction.editReply({ content: 'Failed to add Youtube notification. No changes have been made.' });
+					return;
+				}
+				await interaction.editReply({ content: `Added Youtube notification for <${interaction.options.getString('channel')}>.` });
+			});
+			req.write(options);
+			req.end();
 		}
 		else {
 			await interaction.editReply({ content: 'Unknown subcommand.' });

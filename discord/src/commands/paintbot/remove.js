@@ -14,7 +14,7 @@ module.exports = {
 				.addStringOption(option =>
 					option
 						.setName('channel')
-						.setDescription('The username for the Twitch channel. (Example: jcav)')
+						.setDescription('The username for the Twitch channel.')
 						.setRequired(true)))
 		.addSubcommand(subcommand =>
 			subcommand
@@ -54,7 +54,29 @@ module.exports = {
 			req.end();
 		}
 		else if (interaction.options.getSubcommand() === 'youtube') {
-			await interaction.editReply({ content: `Adding Youtube notification for ${interaction.options.getString('channel')}.` });
+			const options = JSON.stringify({
+				discord_channel: interaction.channelId,
+				source_username: interaction.options.getString('channel')
+			});
+			const request_options = {
+				host: 'twitch',
+				port: '8004',
+				path: '/remove',
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+					'Content-Length': Buffer.byteLength(options),
+				},
+			};
+			const req = http.request(request_options, async (res) => {
+				if (res.statusCode !== 200) {
+					await interaction.editReply({ content: 'Failed to remove Youtube notification. No changes have been made.' });
+					return;
+				}
+				await interaction.editReply({ content: `Removed Youtube notification for <${interaction.options.getString('channel')}>.` });
+			});
+			req.write(options);
+			req.end();
 		}
 		else {
 			await interaction.editReply({ content: 'Unknown subcommand.' });
