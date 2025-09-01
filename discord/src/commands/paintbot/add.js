@@ -91,7 +91,7 @@ module.exports = {
 				discord_channel: interaction.channelId,
 				source_username: interaction.options.getString('channel'),
 				interval: interaction.options.getNumber('interval'),
-				highlight: interaction.options.getString('highlight') || '9146FF',
+				highlight: interaction.options.getString('highlight') || 'CD201F',
 				message: interaction.options.getString('message'),
 			});
 			const request_options = {

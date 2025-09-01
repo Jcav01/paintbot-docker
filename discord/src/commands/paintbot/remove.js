@@ -59,8 +59,8 @@ module.exports = {
 				source_username: interaction.options.getString('channel')
 			});
 			const request_options = {
-				host: 'twitch',
-				port: '8004',
+				host: 'youtube',
+				port: '8005',
 				path: '/remove',
 				method: 'DELETE',
 				headers: {
