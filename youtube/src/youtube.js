@@ -142,6 +142,7 @@ app.route('/webhooks/youtube')
 		return res.sendStatus(400);
 	})
 	.post(async (req, res) => {
+		console.log('YouTube WebSub notification:', req.body);
 		const notif = parseFeed(req.body);
 		console.log('YouTube WebSub notification:', notif);
 		if (notif) {
