@@ -19,6 +19,19 @@ spec:
         image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
         ports:
         - containerPort: 8004
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8004
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8004
+          initialDelaySeconds: 15
+          periodSeconds: 20
         volumeMounts:
         - name: twitch-secrets
           mountPath: /etc/secrets

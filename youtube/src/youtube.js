@@ -126,7 +126,8 @@ app.delete('/remove', express.json(), async (req, res) => {
 		}
 	}
 });
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+	await waitfordb('http://database:8002');
 	res.status(200).send('OK');
 });
 // Respond to WebSub verification challenges from YouTube's hub
@@ -154,23 +155,19 @@ app.route('/webhooks/youtube')
 		return res.sendStatus(200);
 	});
 
-try {
-	await waitfordb('http://database:8002');
-	console.log('Database is up');
-}
-catch (err) {
-	console.log(err.message);
-}
-let subs = [];
-
-app.listen(8005, async () => {
+// Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
+app.listen(8005, () => {
 	console.log('YouTube is listening on port 8005');
-	// Kick off sync to ensure (re)subscriptions
-	try { await syncEventSubSubscriptions(); } catch (e) { console.error('YouTube sync failed:', e.message); }
+	(async () => {
+		try {
+			await waitfordb('http://database:8002');
+			console.log('Database is up');
+			await syncEventSubSubscriptions();
+		} catch (e) {
+			console.error('Post-listen startup task failed:', e.message);
+		}
+	})();
 });
-
-
-
 
 async function setupYouTubeNotification(source_id) {
 	// Build WebSub form data (must be x-www-form-urlencoded)

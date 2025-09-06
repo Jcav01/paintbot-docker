@@ -89,7 +89,8 @@ app.delete('/remove', express.json(), async (req, res) => {
 		delete_req.end();
 	});
 });
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+	await waitfordb('http://database:8002');
 	res.status(200).send('OK');
 });
 
@@ -121,21 +122,21 @@ const twitchListener = new EventSubMiddleware({
 });
 twitchListener.apply(app);
 
-try {
-	await waitfordb('http://database:8002');
-	console.log('Database is up');
-}
-catch (err) {
-	console.log(err.message);
-}
-
 let subs = [];
 
-app.listen(8004, async () => {
-	await twitchListener.markAsReady();
+// Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
+app.listen(8004, () => {
 	console.log('Twitch is listening on port 8004');
-	// Ensure any changes to the sources are reflected in the listener
-	syncEventSubSubscriptions();
+	(async () => {
+		try {
+			await waitfordb('http://database:8002');
+			console.log('Database is up');
+			await twitchListener.markAsReady();
+			await syncEventSubSubscriptions();
+		} catch (e) {
+			console.error('Post-listen startup task failed:', e.message);
+		}
+	})();
 });
 
 async function handleStreamOnline(broadcasterId) {
