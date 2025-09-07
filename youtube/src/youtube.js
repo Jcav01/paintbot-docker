@@ -144,14 +144,12 @@ app.route('/webhooks/youtube')
 		return res.sendStatus(400);
 	})
 	.post(xmlbodyparser(), async (req, res) => {
-		console.log('YouTube WebSub notification:', req.body);
-		const notif = parseFeed(req.body);
-		console.log('YouTube WebSub notification:', notif);
-		if (notif) {
+		console.log('YouTube WebSub notification:', JSON.stringify(req.body));
+		if (req.body) {
 			const sourcesRes = await fetch('http://database:8002/sources/youtube');
 			const sources = await sourcesRes.json();
 			const sourceIds = sources.map(src => src.source_id);
-			addHistory(sourceIds[0], "yt.none", notif);
+			addHistory(sourceIds[0], "yt.none", JSON.stringify(req.body));
 		}
 		return res.sendStatus(200);
 	});
