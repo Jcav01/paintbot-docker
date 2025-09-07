@@ -16,7 +16,8 @@
   "dependencies": {
     "@googleapis/youtube": "^27.0.1",
     "@rowanmanning/feed-parser": "^2.1.1",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "express-xml-bodyparser": "^0.4.1"
   },
   "devDependencies": {
     "eslint": "^9.12.0"
