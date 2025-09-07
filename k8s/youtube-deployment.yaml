@@ -19,19 +19,6 @@ spec:
         image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/youtube:latest
         ports:
         - containerPort: 8005
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8005
-          initialDelaySeconds: 2
-          periodSeconds: 5
-          failureThreshold: 3
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8005
-          initialDelaySeconds: 15
-          periodSeconds: 20
         volumeMounts:
         - name: youtube-secrets
           mountPath: /etc/secrets
