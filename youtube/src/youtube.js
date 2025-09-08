@@ -146,13 +146,23 @@ app.route('/webhooks/youtube')
 	.post(xmlbodyparser(), async (req, res) => {
 		console.log('YouTube WebSub notification:', JSON.stringify(req.body));
 		if (req.body) {
+			// Safely extract the video ID from the XML bodyparser output.
+			// YouTube uses a namespaced key; some parsers surface it as 'yt:videoid' (lowercase id)
+			// and others as 'yt:videoId'. Handle both, and guard against missing fields.
+			const entry = req.body?.feed?.entry?.[0];
+			const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
+			if (!videoId) {
+				console.warn('YouTube WebSub: missing videoId in payload entry:', JSON.stringify(req.body), entry);
+				return res.sendStatus(200);
+			}
+
 			const sourcesRes = await fetch('http://database:8002/sources/youtube');
 			const sources = await sourcesRes.json();
 			const sourceIds = sources.map(src => src.source_id);
 
 			youtube.videos.list({
 				part: ['snippet', 'status'],
-				id: [req.body.feed.entry[0]['yt:videoId'][0]],
+				id: [videoId],
 			}).then(videoResponse => {
 				const video = videoResponse.data.items?.[0];
 				if (video) {
