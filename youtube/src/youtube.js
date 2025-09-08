@@ -149,7 +149,18 @@ app.route('/webhooks/youtube')
 			const sourcesRes = await fetch('http://database:8002/sources/youtube');
 			const sources = await sourcesRes.json();
 			const sourceIds = sources.map(src => src.source_id);
-			addHistory(sourceIds[0], "yt.none", JSON.stringify(req.body));
+
+			youtube.videos.list({
+				part: ['snippet', 'status'],
+				id: [req.body.feed.entry[0]['yt:videoId'][0]],
+			}).then(videoResponse => {
+				const video = videoResponse.data.items?.[0];
+				if (video) {
+					addHistory(sourceIds[0], `yt.${video.snippet.liveBroadcastContent}`, JSON.stringify(video));
+				}
+			}).catch(err => {
+				console.error('Failed to fetch video details:', err);
+			});
 		}
 		return res.sendStatus(200);
 	});
