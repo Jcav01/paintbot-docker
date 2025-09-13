@@ -2,8 +2,6 @@
 
 CREATE SCHEMA public AUTHORIZATION cloudsqlsuperuser;
 
-COMMENT ON SCHEMA public IS 'standard public schema';
-
 -- DROP SEQUENCE public.destinations_destination_id_seq;
 
 CREATE SEQUENCE public.destinations_destination_id_seq
@@ -57,9 +55,9 @@ CREATE TABLE public.sources (
 	source_id text NOT NULL,
 	is_online bool DEFAULT false NOT NULL,
 	notification_source varchar NOT NULL,
-	source_url varchar NOT NULL,
+	source_username varchar NOT NULL,
 	CONSTRAINT sources_pk PRIMARY KEY (source_id),
-	CONSTRAINT sources_unique UNIQUE (source_url),
+	CONSTRAINT sources_unique UNIQUE (source_username),
 	CONSTRAINT sources_notification_sources_fk FOREIGN KEY (notification_source) REFERENCES public.notification_sources(notification_source)
 );
 
@@ -77,6 +75,7 @@ CREATE TABLE public.destinations (
 	source_id text NOT NULL,
 	minimum_interval int2 DEFAULT 15 NULL,
 	highlight_colour bytea DEFAULT '\x393134364646'::bytea NOT NULL,
+	notification_message text NULL,
 	CONSTRAINT destinations_pk PRIMARY KEY (destination_id),
 	CONSTRAINT destinations_un UNIQUE (channel_id, source_id),
 	CONSTRAINT destinations_fk FOREIGN KEY (source_id) REFERENCES public.sources(source_id)
@@ -94,10 +93,12 @@ CREATE TABLE public.past_notifications (
 	notification_type varchar NOT NULL,
 	received_date timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	notification_id bigserial NOT NULL,
+	notification_info jsonb NULL,
 	CONSTRAINT past_notifications_pk PRIMARY KEY (notification_id),
-	CONSTRAINT past_notifications_fk FOREIGN KEY (source_id) REFERENCES public.sources(source_id),
+	CONSTRAINT past_notifications_fk FOREIGN KEY (source_id) REFERENCES public.sources(source_id) ON DELETE CASCADE,
 	CONSTRAINT past_notifications_fk1 FOREIGN KEY (notification_type) REFERENCES public.notification_types(notification_type)
 );
+CREATE INDEX past_notifications_notification_info_gin ON public.past_notifications USING gin (notification_info jsonb_path_ops);
 
 
 -- public.google_db_advisor_agg_query_recommendations source
