@@ -46,6 +46,29 @@ app.get('/notifications/types/:notificationSource', async (req, res) => {
 	res.json(result.rows);
 });
 
+app.post('/notifications/history', async (req, res) => {
+	console.log('Received request to add record to notification history');
+	const result = await db.query('INSERT INTO past_notifications (source_id, notification_type, notification_info) VALUES($1, $2, $3)', [req.body.sourceId, req.body.notificationType, req.body.notificationInfo]);
+	res.json(result.rows);
+});
+
+app.get('/notifications/history/info', async (req, res) => {
+	console.log('Received request to last notification based on notification info:', req.query.search);
+	const rawSearch = req.query.search;
+	if (typeof rawSearch !== 'string' || rawSearch.trim() === '') {
+		return res.status(400).send({ message: 'Missing required query parameter: search' });
+	}
+	let parsed;
+	try {
+		parsed = JSON.parse(rawSearch);
+	} catch (e) {
+		return res.status(400).send({ message: 'Invalid JSON in search parameter', error: e.message });
+	}
+	// Use jsonb containment operator; cast parameter explicitly to jsonb
+	const result = await db.query('SELECT * FROM past_notifications WHERE notification_info @> $1::jsonb ORDER BY received_date DESC LIMIT 1', [JSON.stringify(parsed)]);
+	res.json(result.rows);
+});
+
 app.get('/notifications/history/:source', async (req, res) => {
 	console.log('Received request to get last notification for:', req.params.source);
 	const result = await db.query('SELECT * FROM past_notifications WHERE source_id = $1 ORDER BY received_date DESC LIMIT 1', [req.params.source]);
