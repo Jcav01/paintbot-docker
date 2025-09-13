@@ -23,7 +23,7 @@ app.post('/add', express.json(), async (req, res) => {
 		await waitfordb('http://database:8002');
 
 		const handle = (req.body.source_username || '').replace(/^@/, '');
-		const response = await youtube.channels.list({
+		const response = youtube.channels.list({
 			part: 'id',
 			forHandle: handle,
 		});
@@ -88,7 +88,7 @@ app.delete('/remove', express.json(), async (req, res) => {
 		await waitfordb('http://database:8002');
 
 		const handle = (req.body.source_username || '').replace(/^@/, '');
-		const response = await youtube.channels.list({
+		const response = youtube.channels.list({
 			part: 'id',
 			forHandle: handle,
 		});
@@ -163,9 +163,22 @@ app.route('/webhooks/youtube')
 			youtube.videos.list({
 				part: ['snippet', 'status'],
 				id: [videoId],
-			}).then(videoResponse => {
+			}).then(async videoResponse => {
 				const video = videoResponse.data.items?.[0];
-				if (video) {
+				if (video && video.snippet) {
+					let publishedAt = new Date(video.snippet.publishedAt);
+					if (publishedAt < Date.now() - 24 * 60 * 60 * 1000) {
+						console.log('YouTube video is older than 24 hours:', videoId);
+						return;
+					}
+
+					const historyRes = await fetch('http://database:8002/notifications/history/info?search=' + encodeURIComponent(`"id":${video.id}`));
+					const history = await historyRes.json();
+					if (history.length > 0 && history[0].notificationType === `yt.${video.snippet.liveBroadcastContent}`) {
+						console.log('YouTube video has already been posted, skipping:', videoId);
+						return;
+					}
+
 					addHistory(sourceIds[0], `yt.${video.snippet.liveBroadcastContent}`, JSON.stringify(video));
 				}
 			}).catch(err => {
