@@ -172,7 +172,7 @@ app.route('/webhooks/youtube')
 						return;
 					}
 
-					const historyRes = await fetch('http://database:8002/notifications/history/info?search=' + encodeURIComponent(`"id":${video.id}`));
+					const historyRes = await fetch('http://database:8002/notifications/history/info?search=' + encodeURIComponent(`{"id":"${video.id}"}`));
 					const history = await historyRes.json();
 					if (history.length > 0 && history[0].notificationType === `yt.${video.snippet.liveBroadcastContent}`) {
 						console.log('YouTube video has already been posted, skipping:', videoId);
