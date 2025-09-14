@@ -113,7 +113,7 @@ app.post('/message/send', async (req, res) => {
 	await Promise.all(req.body.channelInfo.map(async info => {
 		const channel = client.channels.cache.get(info.channelId);
 
-		await channel.send({ content: `${info.notification_message} ${req.body.message}` })
+		await channel.send({ content: `${req.body.message}` })
 			.then(message => messages.push({ messageId: message.id, channelId: info.channelId }));
 	}));
 
