@@ -155,7 +155,7 @@ app.route('/webhooks/youtube')
 				return res.sendStatus(200);
 			}
 
-			const sourcesRes = await fetch(`http://database:8002/sources/${entry?.['yt:channelid']?.[0]}`);
+			const sourcesRes = await fetch(`http://database:8002/source/${entry?.['yt:channelid']?.[0]}`);
 			const sources = await sourcesRes.json();
 			const sourceIds = sources.map(src => src.source_id);
 			if(sourceIds.length === 0) {
