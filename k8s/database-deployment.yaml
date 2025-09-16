@@ -5,7 +5,12 @@ metadata:
   labels:
     app: database
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: database
@@ -13,12 +18,51 @@ spec:
     metadata:
       labels:
         app: database
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: database
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: database
       containers:
       - name: database
         image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest
         ports:
         - containerPort: 8002
+        readinessProbe:
+          httpGet:
+            path: "/"
+            port: 8002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: "/"
+            port: 8002
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: "/"
+            port: 8002
+          periodSeconds: 5
+          failureThreshold: 30
         volumeMounts:
         - name: database-secrets
           mountPath: /etc/secrets
@@ -35,11 +79,11 @@ spec:
           value: "paintbot:northamerica-northeast1:paintbot-db"
         resources:
           requests:
-            memory: "96Mi"
-            cpu: "5m"
+            memory: "256Mi"
+            cpu: "50m"
           limits:
-            memory: "96Mi"
-            cpu: "10m"
+            memory: "256Mi"
+            cpu: "50m"
       volumes:
       - name: database-secrets
         secret:
