@@ -198,7 +198,7 @@ app.route('/webhooks/youtube')
 					const destinationRes = await fetch(`http://database:8002/destinations/source/${video.snippet.channelId}`);
 					const destinations = await destinationRes.json();
 
-					await sendVideoNotifications(videoMessage, destinations);
+					await sendVideoNotifications(videoMessage, destinations, video.snippet.channelId);
 
 					addHistory(sourceIds[0], `yt.${video.snippet.liveBroadcastContent}`, JSON.stringify(video));
 				}
@@ -341,7 +341,7 @@ function addHistory(sourceId, notificationType, info = null) {
 	history_req.end();
 }
 
-async function sendVideoNotifications(message, destinations) {
+async function sendVideoNotifications(message, destinations, channelId) {
 		// Create an object to POST to the Discord webhook
 		const embed_data = JSON.stringify({
 			channelInfo: destinations.map(function (destination) { return { channelId: destination.channel_id, highlightColour: destination.highlight_colour, notification_message: destination.notification_message }; }),
@@ -376,7 +376,7 @@ async function sendVideoNotifications(message, destinations) {
 					const lastMessage_options = {
 						host: 'database',
 						port: '8002',
-						path: `/destinations/${element.channelId}/${broadcasterId}`,
+						path: `/destinations/${element.channelId}/${channelId}`,
 						method: 'PUT',
 						headers: {
 							'Content-Type': 'application/json',
