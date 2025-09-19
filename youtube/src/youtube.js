@@ -143,6 +143,7 @@ app.route('/webhooks/youtube')
 		return res.sendStatus(400);
 	})
 	.post(xmlbodyparser(), async (req, res) => {
+		res.sendStatus(200);
 		console.log('YouTube WebSub notification:', JSON.stringify(req.body));
 		if (req.body) {
 			// Safely extract the video ID from the XML bodyparser output.
@@ -152,7 +153,7 @@ app.route('/webhooks/youtube')
 			const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
 			if (!videoId) {
 				console.warn('YouTube WebSub: missing videoId in payload entry:', JSON.stringify(req.body), entry);
-				return res.sendStatus(200);
+				return;
 			}
 
 			const sourcesRes = await fetch(`http://database:8002/source/${entry?.['yt:channelid']?.[0]}`);
@@ -160,7 +161,7 @@ app.route('/webhooks/youtube')
 			const sourceIds = sources.map(src => src.source_id);
 			if(sourceIds.length === 0) {
 				console.log('Channel not subscribed:', entry?.['yt:channelid']?.[0]);
-				return res.sendStatus(200);
+				return;
 			}
 
 			youtube.videos.list({
@@ -172,14 +173,14 @@ app.route('/webhooks/youtube')
 					let publishedAt = new Date(video.snippet.publishedAt);
 					if (publishedAt < Date.now() - 24 * 60 * 60 * 1000) {
 						console.log('YouTube video is older than 24 hours:', videoId);
-						return res.sendStatus(200);
+						return;
 					}
 
 					const historyRes = await fetch('http://database:8002/notifications/history/info?search=' + encodeURIComponent(`{"id":"${video.id}"}`));
 					const history = await historyRes.json();
 					if (history.length > 0 && history[0].notificationType === `yt.${video.snippet.liveBroadcastContent}`) {
 						console.log('YouTube video has already been posted, skipping:', videoId);
-						return res.sendStatus(200);
+						return;
 					}
 
 					let videoMessage;
@@ -191,7 +192,7 @@ app.route('/webhooks/youtube')
 							videoMessage = `${video.snippet.channelTitle} has posted a new video: https://youtu.be/${video.id}`;
 					} else {
 							console.log('YouTube video is a past stream that has already been announced as live, skipping:', videoId);
-							return res.sendStatus(200);
+							return;
 					}
 
 					// Get the list of destinations to post to
@@ -206,7 +207,6 @@ app.route('/webhooks/youtube')
 				console.error('Failed to fetch video details:', err);
 			});
 		}
-		return res.sendStatus(200);
 	});
 
 // Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
