@@ -204,7 +204,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: event.categoryName || 'Untitled Broadcast',
+      title: stream.title || 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
@@ -219,11 +219,11 @@ async function handleStreamOnline(event) {
       fields: [
         {
           name: 'Game',
-          value: event.categoryName || 'N/A',
+          value: stream.gameName || 'N/A',
         },
       ],
       image: {
-        // Appending the date is a hack to force Discord to re-fetch the image every time
+        // Appending the date to force Discord to re-fetch the image for every change
         // Divided by 1000 to get seconds, reducing the number of characters in the URL
         url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${user.name}-1280x720.png?r=${Math.floor(new Date().getTime() / 1000)}`,
       },
@@ -358,7 +358,7 @@ async function handleChannelUpdate(event) {
         };
       }),
       embed: {
-        title: event.categoryName || 'Untitled Broadcast',
+        title: event.streamTitle || 'Untitled Broadcast',
         url: `https://www.twitch.tv/${event.broadcasterName}`,
         thumbnail: {
           url: game
@@ -377,7 +377,7 @@ async function handleChannelUpdate(event) {
           },
         ],
         image: {
-          // Appending the date is a hack to force Discord to re-fetch the image every time
+          // Appending the date to force Discord to re-fetch the image for every change
           // Divided by 1000 to get seconds, reducing the number of characters in the URL
           url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${user.name}-1280x720.png?r=${Math.floor(new Date().getTime() / 1000)}`,
         },
