@@ -4,10 +4,14 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "always"
   },
-  "eslint.useFlatConfig": false,
+  // Enable ESLint flat config (you have eslint.config.cjs)
+  "eslint.useFlatConfig": true,
   "files.eol": "\n",
   "[javascript]": {
     "editor.formatOnSave": true
   },
-  "prettier.requireConfig": true
+  "prettier.requireConfig": true,
+  // Mirror .prettierrc key style (not strictly needed, but clarifies intent in the editor UI)
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "es5"
 }
