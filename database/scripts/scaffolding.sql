@@ -100,6 +100,14 @@ CREATE TABLE public.past_notifications (
 );
 CREATE INDEX past_notifications_notification_info_gin ON public.past_notifications USING gin (notification_info jsonb_path_ops);
 
+-- Composite unique index: each (videoId, notification_type) only once
+CREATE UNIQUE INDEX IF NOT EXISTS ux_past_notifications_video_type
+  ON past_notifications ((notification_info->>'id'), notification_type);
+
+-- Supporting non-unique index on just videoId for faster lookups of all stages
+CREATE INDEX IF NOT EXISTS ix_past_notifications_video
+  ON past_notifications ((notification_info->>'id'));
+
 
 -- public.google_db_advisor_agg_query_recommendations source
 

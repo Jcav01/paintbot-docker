@@ -22,7 +22,7 @@ app.post('/add', express.json(), async (req, res) => {
 		await waitfordb('http://database:8002');
 
 		const handle = (req.body.source_username || '').replace(/^@/, '');
-		const response = youtube.channels.list({
+		const response = await youtube.channels.list({
 			part: 'id',
 			forHandle: handle,
 		});
@@ -69,7 +69,7 @@ app.post('/add', express.json(), async (req, res) => {
 			source_req.end();
 		});
 
-		setupYouTubeNotification({ source_id: user.id })
+		setupYouTubeNotification(user.id)
 			.then(() => console.log('Requested WebSub subscription for', user.id))
 			.catch(err => console.error('Failed to request WebSub subscription:', err));
 
@@ -145,67 +145,88 @@ app.route('/webhooks/youtube')
 	.post(xmlbodyparser(), async (req, res) => {
 		res.sendStatus(200);
 		console.log('YouTube WebSub notification:', JSON.stringify(req.body));
-		if (req.body) {
-			// Safely extract the video ID from the XML bodyparser output.
-			// YouTube uses a namespaced key; some parsers surface it as 'yt:videoid' (lowercase id)
-			// and others as 'yt:videoId'. Handle both, and guard against missing fields.
-			const entry = req.body?.feed?.entry?.[0];
-			const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
-			if (!videoId) {
-				console.warn('YouTube WebSub: missing videoId in payload entry:', JSON.stringify(req.body), entry);
-				return;
-			}
+		if (!req.body) return;
 
-			const sourcesRes = await fetch(`http://database:8002/source/${entry?.['yt:channelid']?.[0]}`);
+		const entry = req.body?.feed?.entry?.[0];
+		const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
+		const channelId = entry?.['yt:channelid']?.[0];
+		if (!videoId || !channelId) {
+			console.warn('YouTube WebSub: missing identifiers');
+			return;
+		}
+
+		try {
+			// Ensure channel subscribed
+			const sourcesRes = await fetch(`http://database:8002/source/${channelId}`);
 			const sources = await sourcesRes.json();
-			const sourceIds = sources.map(src => src.source_id);
-			if(sourceIds.length === 0) {
-				console.log('Channel not subscribed:', entry?.['yt:channelid']?.[0]);
+			if (!Array.isArray(sources) || sources.length === 0) {
+				console.log('Channel not subscribed:', channelId);
+				return;
+			}
+			const sourceId = sources[0].source_id;
+
+			// Fetch video details
+			const videoResponse = await youtube.videos.list({ part: ['snippet', 'status'], id: [videoId] });
+			const video = videoResponse.data.items?.[0];
+			if (!video || !video.snippet) return;
+
+			const publishedAt = new Date(video.snippet.publishedAt);
+			if (publishedAt.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+				console.log('YouTube video older than 24h, skipping:', videoId);
 				return;
 			}
 
-			youtube.videos.list({
-				part: ['snippet', 'status'],
-				id: [videoId],
-			}).then(async videoResponse => {
-				const video = videoResponse.data.items?.[0];
-				if (video && video.snippet) {
-					let publishedAt = new Date(video.snippet.publishedAt);
-					if (publishedAt < Date.now() - 24 * 60 * 60 * 1000) {
-						console.log('YouTube video is older than 24 hours:', videoId);
-						return;
-					}
+			// Determine stage
+			let stage = video.snippet.liveBroadcastContent || 'none';
+			const notificationType = `yt.${stage}`;
 
-					const historyRes = await fetch('http://database:8002/notifications/history/info?search=' + encodeURIComponent(`{"id":"${video.id}"}`));
-					const history = await historyRes.json();
-					if (history.length > 0 && history[0].notification_type === `yt.${video.snippet.liveBroadcastContent}`) {
-						console.log('YouTube video has already been posted, skipping:', videoId);
-						return;
-					}
+			// Retrieve existing stages for this video
+			const existingTypesRes = await fetch(`http://database:8002/notifications/history/types/${encodeURIComponent(videoId)}`);
+			const existingTypes = new Set(await existingTypesRes.json());
 
-					let videoMessage;
-					if (video.snippet.liveBroadcastContent === 'live') {
-							videoMessage = `${video.snippet.channelTitle} is now live! Watch at https://youtu.be/${video.id}`;
-					} else if (video.snippet.liveBroadcastContent === 'upcoming') {
-							videoMessage = `${video.snippet.channelTitle} has an upcoming live stream: https://youtu.be/${video.id}`;
-					} else if (!history.some(h => h.notificationType === 'yt.live')) {
-							videoMessage = `${video.snippet.channelTitle} has posted a new video: https://youtu.be/${video.id}`;
-					} else {
-							console.log('YouTube video is a past stream that has already been announced as live, skipping:', videoId);
-							return;
-					}
+			let shouldNotify = false;
+			if (stage === 'upcoming') {
+				shouldNotify = !existingTypes.has('yt.upcoming');
+			} else if (stage === 'live') {
+				shouldNotify = !existingTypes.has('yt.live');
+			} else if (stage === 'none') {
+				// Plain upload only if no earlier stage or none posted
+				shouldNotify = !existingTypes.has('yt.live') && !existingTypes.has('yt.upcoming') && !existingTypes.has('yt.none');
+			}
+			if (!shouldNotify) {
+				console.log('Stage already handled for video', videoId, 'stage', stage);
+				return;
+			}
 
-					// Get the list of destinations to post to
-					const destinationRes = await fetch(`http://database:8002/destinations/source/${video.snippet.channelId}`);
-					const destinations = await destinationRes.json();
-
-					await sendVideoNotifications(videoMessage, destinations, video.snippet.channelId);
-
-					addHistory(sourceIds[0], `yt.${video.snippet.liveBroadcastContent}`, JSON.stringify(video));
-				}
-			}).catch(err => {
-				console.error('Failed to fetch video details:', err);
+			// Attempt to claim (race-safe)
+			const claimRes = await fetch('http://database:8002/notifications/history/claim', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ sourceId, notificationType, notificationInfo: JSON.stringify(video) })
 			});
+			const claim = await claimRes.json();
+			if (!claim.inserted) {
+				console.log('Lost race to claim notification for', videoId, notificationType);
+				return;
+			}
+
+			// Build user-facing message
+			let videoMessage;
+			if (stage === 'live') {
+				videoMessage = `${video.snippet.channelTitle} is now live! Watch at https://youtu.be/${video.id}`;
+			} else if (stage === 'upcoming') {
+				videoMessage = `${video.snippet.channelTitle} has an upcoming live stream: https://youtu.be/${video.id}`;
+			} else { // none
+				videoMessage = `${video.snippet.channelTitle} has posted a new video: https://youtu.be/${video.id}`;
+			}
+
+			// Fetch destinations
+			const destinationRes = await fetch(`http://database:8002/destinations/source/${channelId}`);
+			const destinations = await destinationRes.json();
+			
+			await sendVideoNotifications(videoMessage, destinations, channelId);
+		} catch (e) {
+			console.error('Error processing YouTube notification for video', videoId, e);
 		}
 	});
 
@@ -320,26 +341,7 @@ async function syncEventSubSubscriptions() {
 	}, 777600000); // 9 days rather than 10, to allow for potential downtime or other issues
 }
 
-function addHistory(sourceId, notificationType, info = null) {
-	const history_data = JSON.stringify({
-		sourceId: sourceId,
-		notificationType: notificationType,
-		notificationInfo: info,
-	});
-	const history_options = {
-		host: 'database',
-		port: '8002',
-		path: '/notifications/history',
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Content-Length': Buffer.byteLength(history_data),
-		},
-	};
-	const history_req = http.request(history_options);
-	history_req.write(history_data);
-	history_req.end();
-}
+function addHistory() { /* deprecated: replaced by claim endpoint */ }
 
 async function sendVideoNotifications(message, destinations, channelId) {
 		// Create an object to POST to the Discord webhook

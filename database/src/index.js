@@ -148,6 +148,25 @@ app.delete('/destination/:destination/:source', asyncHandler(async (req, res) =>
 	res.send();
 }));
 
+app.get('/notifications/history/types/:videoId', asyncHandler(async (req, res) => {
+	console.log('Received request to get notification types for video:', req.params.videoId);
+	const result = await db.query('SELECT notification_type FROM past_notifications WHERE notification_info->>\'id\' = $1', [req.params.videoId]);
+	res.json(result.rows.map(r => r.notification_type));
+}));
+
+app.post('/notifications/history/claim', asyncHandler(async (req, res) => {
+	// body: { sourceId, notificationType, notificationInfo }
+	console.log('Received request to claim notification stage:', req.body.notificationType, 'for video id:', (req.body.notificationInfo && JSON.parse(req.body.notificationInfo).id));
+	const result = await db.query(
+		`INSERT INTO past_notifications (source_id, notification_type, notification_info)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT ((notification_info->>'id'), notification_type) DO NOTHING
+		 RETURNING notification_type`,
+		[req.body.sourceId, req.body.notificationType, req.body.notificationInfo]
+	);
+	res.json({ inserted: result.rowCount === 1 });
+}));
+
 app.listen(8002, () => {
 	console.log('Database is listening on port 8002');
 });
