@@ -516,7 +516,6 @@ async function syncEventSubSubscriptions() {
   for (const sourceId of sourceIds) {
     addEvents(sourceId); // Your existing function to add subscriptions
     console.log(`Created EventSub subscription for source: ${sourceId}`);
-    console.log(await subs[0].subscriptions[0].getCliTestCommand());
   }
 
   // 5. Log the current subscription quota
