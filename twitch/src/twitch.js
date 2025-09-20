@@ -331,13 +331,11 @@ async function handleChannelUpdate(event) {
   console.log(`Twitch channel updated: ${event.broadcasterId}`);
 
   // Get the last notification for the source
-  const lastNotifRes = await fetch(
-    `http://database:8002/notifications/history/${event.broadcasterId}`
-  );
-  const lastNotif = await lastNotifRes.json();
-  console.table(lastNotif);
+  const sourceRes = await fetch(`http://database:8002/source/${event.broadcasterId}`);
+  const sources = await sourceRes.json();
+  console.table(sources);
 
-  if (lastNotif[0].notification_type === 'stream.online') {
+  if (sources[0].is_online) {
     // Get the list of destinations to post to
     const destinationRes = await fetch(
       `http://database:8002/destinations/source/${event.broadcasterId}`
