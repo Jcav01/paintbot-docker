@@ -2,6 +2,7 @@
 // Applies to all JavaScript in the monorepo services.
 const js = require("@eslint/js");
 const prettier = require("eslint-config-prettier");
+const globals = require("globals");
 
 module.exports = [
   js.configs.recommended,
@@ -11,6 +12,10 @@ module.exports = [
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
+      globals: {
+        ...globals.node, // Node.js globals: console, process, Buffer, setTimeout, etc.
+        fetch: "readonly", // Node 18+ global fetch
+      },
     },
     linterOptions: {
       reportUnusedDisableDirectives: true,
