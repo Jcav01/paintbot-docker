@@ -204,7 +204,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: stream.title || 'Untitled Broadcast',
+      title: stream.streamTitle || 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
