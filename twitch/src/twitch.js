@@ -186,11 +186,22 @@ async function handleStreamOnline(event) {
     });
   }
 
+  // Allow some time for Twitch to update the stream info
+  await new Promise((r) => setTimeout(r, 500));
   // Create an object to POST to the Discord webhook
-  const stream = await event.getStream();
+  let stream = await event.getStream();
+  if (!stream) {
+    for (let i = 0; i < 4; i++) {
+      const s = event.getStream();
+      if (s) return s;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
   let game;
   if (stream) {
     game = await stream.getGame();
+  } else {
+    console.warn('Failed to get stream data after several attempts, using default values');
   }
   const user = await event.getBroadcaster();
   // Create an object to POST to the Discord webhook
@@ -204,7 +215,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: stream.title || 'Untitled Broadcast',
+      title: stream?.title ?? 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
@@ -219,7 +230,7 @@ async function handleStreamOnline(event) {
       fields: [
         {
           name: 'Game',
-          value: stream.gameName || 'N/A',
+          value: stream?.gameName ?? 'N/A',
         },
       ],
       image: {
