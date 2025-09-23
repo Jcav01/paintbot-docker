@@ -192,9 +192,9 @@ async function handleStreamOnline(event) {
   let stream = await event.getStream();
   if (!stream) {
     for (let i = 0; i < 4; i++) {
-      const s = event.getStream();
-      if (s) return s;
-      await new Promise((r) => setTimeout(r, 1500));
+      stream = event.getStream();
+      if (stream) break;
+      await new Promise((r) => setTimeout(r, 750));
     }
   }
   let game;
