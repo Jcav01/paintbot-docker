@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: development
+data:
+  HOSTNAME: dev.paintbot.net

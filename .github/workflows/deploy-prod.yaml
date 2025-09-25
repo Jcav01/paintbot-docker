@@ -97,17 +97,7 @@ jobs:
 
       - name: Deploy to GKE
         run: |
-          kubectl apply -f k8s/config/production-configmap.yaml
-          kubectl apply -f k8s/database-deployment.yaml -n production
-          kubectl apply -f k8s/database-pdb.yaml -n production
-          kubectl apply -f k8s/discord-deployment.yaml -n production
-          kubectl apply -f k8s/twitch-deployment.yaml -n production
-          kubectl apply -f k8s/youtube-deployment.yaml -n production
-
-      - name: Adjust production settings (replicas)
-        run: |
-          # HA for database in production
-          kubectl scale deployment/database --replicas=2 -n production
+          kubectl apply -k k8s/overlays/production
 
       - name: Verify deployment
         run: |-

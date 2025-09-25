@@ -5,13 +5,13 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: your-email@example.com  # Replace with your email
+    email: your-email@example.com # Replace with your email
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
-    - http01:
-        ingress:
-          class: nginx
+      - http01:
+          ingress:
+            class: nginx
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -22,17 +22,17 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   tls:
-  - hosts:
-    - paintbot.yourdomain.com
-    secretName: twitch-tls-secret
+    - hosts:
+        - paintbot.yourdomain.com
+      secretName: twitch-tls-secret
   rules:
-  - host: paintbot.yourdomain.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: twitch
-            port:
-              number: 8004
+    - host: paintbot.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: twitch
+                port:
+                  number: 8004

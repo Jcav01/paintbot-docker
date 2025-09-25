@@ -107,15 +107,10 @@ jobs:
           kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
           echo "✅ All required secrets found"
 
-      # Apply config and Deploy to GKE using combined deployment files
+      # Apply config and Deploy via Kustomize overlay
       - name: Deploy to GKE
         run: |-
-          # Apply combined deployment and service files
-          kubectl apply -f k8s/config/development-configmap.yaml
-          kubectl apply -f k8s/database-deployment.yaml -n development
-          kubectl apply -f k8s/discord-deployment.yaml -n development
-          kubectl apply -f k8s/twitch-deployment.yaml -n development
-          kubectl apply -f k8s/youtube-deployment.yaml -n development
+          kubectl apply -k k8s/overlays/development
 
       - name: Verify deployment
         run: |-
