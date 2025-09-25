@@ -17,6 +17,30 @@ patches:
         replicas: 1
   - target:
       kind: Deployment
+      name: database
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: database
+      spec:
+        template:
+          metadata:
+            annotations:
+              cluster-autoscaler.kubernetes.io/safe-to-evict: null
+          spec:
+            affinity: null
+            containers:
+              - name: database
+                resources:
+                  requests:
+                    cpu: "50m"
+                    memory: "256Mi"
+                  limits:
+                    cpu: "50m"
+                    memory: "256Mi"
+  - target:
+      kind: Deployment
       name: twitch
     patch: |-
       apiVersion: apps/v1
