@@ -15,28 +15,31 @@ spec:
         app: twitch
     spec:
       containers:
-      - name: twitch
-        image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
-        ports:
-        - containerPort: 8004
-        volumeMounts:
-        - name: twitch-secrets
-          mountPath: /etc/secrets
-          readOnly: true
-        env:
-        - name: NODE_ENV
-          value: "production"
-        resources:
-          requests:
-            memory: "192Mi"
-            cpu: "5m"
-          limits:
-            memory: "192Mi"
-            cpu: "10m"
+        - name: twitch
+          image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
+          ports:
+            - containerPort: 8004
+          volumeMounts:
+            - name: twitch-secrets
+              mountPath: /etc/secrets
+              readOnly: true
+          env:
+            - name: NODE_ENV
+              value: 'production'
+          envFrom:
+            - configMapRef:
+                name: app-config
+          resources:
+            requests:
+              memory: '192Mi'
+              cpu: '5m'
+            limits:
+              memory: '192Mi'
+              cpu: '10m'
       volumes:
-      - name: twitch-secrets
-        secret:
-          secretName: twitch-secrets
+        - name: twitch-secrets
+          secret:
+            secretName: twitch-secrets
       restartPolicy: Always
 ---
 apiVersion: v1
@@ -47,6 +50,6 @@ spec:
   selector:
     app: twitch
   ports:
-  - port: 8004
-    targetPort: 8004
+    - port: 8004
+      targetPort: 8004
   type: ClusterIP

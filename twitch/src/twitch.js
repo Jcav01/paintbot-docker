@@ -121,7 +121,7 @@ const apiClient = new ApiClient({ authProvider });
 
 const twitchListener = new EventSubMiddleware({
   apiClient,
-  hostName: 'dev.paintbot.net',
+  hostName: process.env.HOSTNAME || 'dev.paintbot.net',
   pathPrefix: '/webhooks/twitch',
   secret: secrets.eventSubSecret,
 });
