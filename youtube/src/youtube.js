@@ -197,6 +197,7 @@ app
         `http://database:8002/notifications/history/types/${encodeURIComponent(videoId)}`
       );
       const existingTypes = new Set(await existingTypesRes.json());
+      console.log('Existing notification types for', videoId, existingTypes);
 
       let shouldNotify = false;
       if (stage === 'upcoming') {
