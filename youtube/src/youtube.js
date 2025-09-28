@@ -277,7 +277,7 @@ async function setupYouTubeNotification(source_id) {
     // Optional verification/secret fields; leave empty or wire to a secret to validate signatures
     'hub.verify_token': '',
     // 'hub.secret': '<your-shared-secret>',
-    'hub.lease_seconds': 864000, // 10 days
+    'hub.lease_seconds': 7200, // 2 hours
   };
 
   const body = new URLSearchParams(hub).toString();
@@ -360,10 +360,6 @@ async function syncEventSubSubscriptions() {
       setupYouTubeNotification(source_id);
     });
   }, 777600000); // 9 days rather than 10, to allow for potential downtime or other issues
-}
-
-function addHistory() {
-  /* deprecated: replaced by claim endpoint */
 }
 
 async function sendVideoNotifications(message, destinations, channelId) {
