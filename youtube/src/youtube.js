@@ -207,11 +207,8 @@ app
       } else if (stage === 'live') {
         shouldNotify = !existingTypes.has('yt.live');
       } else if (stage === 'none') {
-        // Plain upload only if no earlier stage or none posted
-        shouldNotify =
-          !existingTypes.has('yt.live') &&
-          !existingTypes.has('yt.upcoming') &&
-          !existingTypes.has('yt.none');
+        // Plain upload only if not previously a live stream
+        shouldNotify = !existingTypes.has('yt.live');
       }
       if (!shouldNotify) {
         console.log('Stage already handled for video', videoId, 'stage', stage);
@@ -239,7 +236,9 @@ app
       if (stage === 'live') {
         videoMessage = `${video.snippet.channelTitle} is now live! Watch at https://youtu.be/${video.id}`;
       } else if (stage === 'upcoming') {
-        videoMessage = `${video.snippet.channelTitle} has an upcoming live stream: https://youtu.be/${video.id}`;
+        const publishedAt = new Date(video.snippet.publishedAt);
+        const publishedTimestamp = Math.floor(publishedAt.getTime() / 1000);
+        videoMessage = `${video.snippet.channelTitle} has scheduled a live stream/premiere for <t:${publishedTimestamp}:F>: https://youtu.be/${video.id}`;
       } else {
         // none
         videoMessage = `${video.snippet.channelTitle} has posted a new video: https://youtu.be/${video.id}`;
