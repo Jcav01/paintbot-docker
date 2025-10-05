@@ -183,11 +183,11 @@ app.listen(8001, () => {
 async function checkServerWhitelist(serverId) {
   try {
     waitfordb();
-    const res = await fetch('http://database:8002/servers');
+    const res = await fetch('http://database:8002/servers/' + serverId);
     if (!res.ok) return false;
-    const whitelist = await res.json();
-    console.log(whitelist);
-    return whitelist?.map((server) => server.server_id).includes(serverId) ?? false;
+    const result = await res.json();
+    console.log(`Whitelist check for server ${serverId}: ${result?.whitelisted ?? false}`);
+    return result?.whitelisted ?? false;
   } catch (error) {
     console.error('Failed to verify server whitelist:', error);
     return false;

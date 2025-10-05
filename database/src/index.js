@@ -323,11 +323,13 @@ app.post(
 );
 
 app.get(
-  '/servers',
+  '/servers/:id',
   asyncHandler(async (req, res) => {
     console.log('Received request to get servers');
-    const result = await db.query('SELECT server_id FROM servers');
-    res.json(result.rows);
+    const result = await db.query('SELECT COUNT(1) FROM servers WHERE server_id = $1', [
+      req.params.id,
+    ]);
+    res.json({ whitelisted: result.rows[0].count == 1 });
   })
 );
 
