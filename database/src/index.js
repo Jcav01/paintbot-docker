@@ -322,6 +322,15 @@ app.post(
   })
 );
 
+app.get(
+  '/servers',
+  asyncHandler(async (req, res) => {
+    console.log('Received request to get servers');
+    const result = await db.query('SELECT * FROM servers');
+    res.json(result.rows);
+  })
+);
+
 app.listen(8002, () => {
   console.log('Database is listening on port 8002');
 });

@@ -2,6 +2,8 @@
 
 CREATE SCHEMA public AUTHORIZATION cloudsqlsuperuser;
 
+COMMENT ON SCHEMA public IS 'standard public schema';
+
 -- DROP SEQUENCE public.destinations_destination_id_seq;
 
 CREATE SEQUENCE public.destinations_destination_id_seq
@@ -28,6 +30,19 @@ CREATE SEQUENCE public.past_notifications_notification_id_seq
 CREATE TABLE public.notification_sources (
 	notification_source varchar NOT NULL,
 	CONSTRAINT notification_sources_pk PRIMARY KEY (notification_source)
+);
+
+
+-- public.servers definition
+
+-- Drop table
+
+-- DROP TABLE public.servers;
+
+CREATE TABLE public.servers (
+	server_id text NOT NULL,
+	server_name text NULL,
+	CONSTRAINT servers_pk PRIMARY KEY (server_id)
 );
 
 
@@ -75,11 +90,15 @@ CREATE TABLE public.destinations (
 	source_id text NOT NULL,
 	minimum_interval int2 DEFAULT 15 NULL,
 	highlight_colour bytea DEFAULT '\x393134364646'::bytea NOT NULL,
-	notification_message text NULL,
+	notification_message text NULL, -- The message added to a message alongside a notification
 	CONSTRAINT destinations_pk PRIMARY KEY (destination_id),
 	CONSTRAINT destinations_un UNIQUE (channel_id, source_id),
 	CONSTRAINT destinations_fk FOREIGN KEY (source_id) REFERENCES public.sources(source_id)
 );
+
+-- Column comments
+
+COMMENT ON COLUMN public.destinations.notification_message IS 'The message added to a message alongside a notification';
 
 
 -- public.past_notifications definition
@@ -98,15 +117,9 @@ CREATE TABLE public.past_notifications (
 	CONSTRAINT past_notifications_fk FOREIGN KEY (source_id) REFERENCES public.sources(source_id) ON DELETE CASCADE,
 	CONSTRAINT past_notifications_fk1 FOREIGN KEY (notification_type) REFERENCES public.notification_types(notification_type)
 );
+CREATE INDEX ix_past_notifications_video ON public.past_notifications USING btree (((notification_info ->> 'id'::text)));
 CREATE INDEX past_notifications_notification_info_gin ON public.past_notifications USING gin (notification_info jsonb_path_ops);
-
--- Composite unique index: each (videoId, notification_type) only once
-CREATE UNIQUE INDEX IF NOT EXISTS ux_past_notifications_video_type
-  ON past_notifications ((notification_info->>'id'), notification_type);
-
--- Supporting non-unique index on just videoId for faster lookups of all stages
-CREATE INDEX IF NOT EXISTS ix_past_notifications_video
-  ON past_notifications ((notification_info->>'id'));
+CREATE UNIQUE INDEX ux_past_notifications_video_type ON public.past_notifications USING btree (((notification_info ->> 'id'::text)), notification_type);
 
 
 -- public.google_db_advisor_agg_query_recommendations source

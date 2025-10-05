@@ -9,16 +9,16 @@ app.use(express.json());
 // Load the secrets from Kubernetes mounted secrets
 let secrets;
 try {
-	// In Kubernetes, secrets are mounted as individual files in a directory
-	const secretsPath = '/etc/secrets';
-	secrets = {
-		token: fs.readFileSync(`${secretsPath}/bot-token`, 'utf8').trim()
-	};
-	
-	console.log('Discord secrets loaded successfully from Kubernetes');
+  // In Kubernetes, secrets are mounted as individual files in a directory
+  const secretsPath = '/etc/secrets';
+  secrets = {
+    token: fs.readFileSync(`${secretsPath}/bot-token`, 'utf8').trim(),
+  };
+
+  console.log('Discord secrets loaded successfully from Kubernetes');
 } catch (err) {
-	console.error('Failed to load Discord secrets:', err.message);
-	process.exit(1);
+  console.error('Failed to load Discord secrets:', err.message);
+  process.exit(1);
 }
 
 // Create a new client instance
@@ -32,53 +32,64 @@ const commandFolders = fs.readdirSync(foldersPath);
 
 // Loop through each folder in the commands directory
 for (const folder of commandFolders) {
-	const commandsPath = path.join(foldersPath, folder);
-	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+  const commandsPath = path.join(foldersPath, folder);
+  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 
-	// Add each file as a command
-	for (const file of commandFiles) {
-		const filePath = path.join(commandsPath, file);
-		const command = require(filePath);
-		// Add each command file to the command collection
-		if ('data' in command && 'execute' in command) {
-			client.commands.set(command.data.name, command);
-		}
-		else {
-			console.log(`The command at ${filePath} is missing a required "data" or "execute" property.`);
-		}
-	}
+  // Add each file as a command
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    // Add each command file to the command collection
+    if ('data' in command && 'execute' in command) {
+      client.commands.set(command.data.name, command);
+    } else {
+      console.log(`The command at ${filePath} is missing a required "data" or "execute" property.`);
+    }
+  }
 }
 
 // When the client is ready, run this code (only once)
-client.once(Events.ClientReady, c => {
-	console.log(`Ready! Logged in as ${c.user.tag}`);
+client.once(Events.ClientReady, (c) => {
+  console.log(`Ready! Logged in as ${c.user.tag}`);
+  client.guilds.cache.forEach((guild) => {
+    if (!checkServerWhitelist(guild.id)) guild.leave();
+  });
+});
+
+// Check if a server is in the whitelist when joining a new one
+client.on(Events.GuildCreate, (guild) => {
+  if (!checkServerWhitelist(guild.id)) guild.leave();
 });
 
 // Hande slash commands
-client.on(Events.InteractionCreate, async interaction => {
-	// Ignore interactions that are not slash commands
-	if (!interaction.isChatInputCommand()) return;
+client.on(Events.InteractionCreate, async (interaction) => {
+  // Ignore interactions that are not slash commands
+  if (!interaction.isChatInputCommand()) return;
 
-	// Retrieve command from collection
-	const command = interaction.client.commands.get(interaction.commandName);
+  // Retrieve command from collection
+  const command = interaction.client.commands.get(interaction.commandName);
 
-	if (!command) {
-		console.error(`No command matching ${interaction.commandName} was found.`);
-		return;
-	}
+  if (!command) {
+    console.error(`No command matching ${interaction.commandName} was found.`);
+    return;
+  }
 
-	try {
-		await command.execute(interaction);
-	}
-	catch (error) {
-		console.error(error);
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-		}
-		else {
-			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-		}
-	}
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({
+        content: 'There was an error while executing this command!',
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: 'There was an error while executing this command!',
+        ephemeral: true,
+      });
+    }
+  }
 });
 
 // Log in to Discord with your client's token
@@ -86,63 +97,122 @@ client.login(secrets.token);
 
 // Handle requests from other services to post notifications
 app.post('/embed/send', async (req, res) => {
-	console.log(JSON.stringify(req.body.embed));
-	const messages = [];
-	await Promise.all(req.body.channelInfo.map(async info => {
-		const channel = client.channels.cache.get(info.channelId);
-		const embed = new EmbedBuilder()
-			.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
-			.setTitle(req.body.embed.title)
-			.setURL(req.body.embed.url)
-			.setAuthor({ name: req.body.embed.author.name, iconURL: req.body.embed.author.iconUrl, url: req.body.embed.author.url })
-			.setThumbnail(req.body.embed.thumbnail.url)
-			.addFields(req.body.embed.fields)
-			.setImage(req.body.embed.image.url);
+  console.log(JSON.stringify(req.body.embed));
+  const messages = [];
+  await Promise.all(
+    req.body.channelInfo.map(async (info) => {
+      const channel = client.channels.cache.get(info.channelId);
+      const embed = new EmbedBuilder()
+        .setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
+        .setTitle(req.body.embed.title)
+        .setURL(req.body.embed.url)
+        .setAuthor({
+          name: req.body.embed.author.name,
+          iconURL: req.body.embed.author.iconUrl,
+          url: req.body.embed.author.url,
+        })
+        .setThumbnail(req.body.embed.thumbnail.url)
+        .addFields(req.body.embed.fields)
+        .setImage(req.body.embed.image.url);
 
-		await channel.send({ content: info.notification_message, embeds: [embed] })
-			.then(message => messages.push({ messageId: message.id, channelId: info.channelId }));
-	}));
+      await channel
+        .send({ content: info.notification_message, embeds: [embed] })
+        .then((message) => messages.push({ messageId: message.id, channelId: info.channelId }));
+    })
+  );
 
-	res.send(messages);
+  res.send(messages);
 });
 
 // Handle requests from other services to post notifications
 app.post('/message/send', async (req, res) => {
-	console.log(JSON.stringify(req.body.message));
-	const messages = [];
-	await Promise.all(req.body.channelInfo.map(async info => {
-		const channel = client.channels.cache.get(info.channelId);
+  console.log(JSON.stringify(req.body.message));
+  const messages = [];
+  await Promise.all(
+    req.body.channelInfo.map(async (info) => {
+      const channel = client.channels.cache.get(info.channelId);
 
-		await channel.send({ content: `${req.body.message}` })
-			.then(message => messages.push({ messageId: message.id, channelId: info.channelId }));
-	}));
+      await channel
+        .send({ content: `${req.body.message}` })
+        .then((message) => messages.push({ messageId: message.id, channelId: info.channelId }));
+    })
+  );
 
-	res.send(messages);
+  res.send(messages);
 });
 
 // Handle requests from other services to post notifications
 app.post('/embed/edit', (req, res) => {
-	req.body.channelInfo.forEach(info => {
-		const channel = client.channels.cache.get(info.channelId);
-		channel.messages.fetch(info.messageId)
-			.then(async message => {
-				const embed = new EmbedBuilder()
-					.setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
-					.setTitle(req.body.embed.title)
-					.setURL(req.body.embed.url)
-					.setAuthor({ name: req.body.embed.author.name, iconURL: req.body.embed.author.iconUrl, url: req.body.embed.author.url })
-					.setThumbnail(req.body.embed.thumbnail.url)
-					.addFields(req.body.embed.fields)
-					.setImage(req.body.embed.image.url);
-					
-				await message.edit({ content: info.notification_message, embeds: [embed] })
-					.catch(console.error);
-			})
-			.catch(console.error);
-	});
-	res.send();
+  req.body.channelInfo.forEach((info) => {
+    const channel = client.channels.cache.get(info.channelId);
+    channel.messages
+      .fetch(info.messageId)
+      .then(async (message) => {
+        const embed = new EmbedBuilder()
+          .setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)
+          .setTitle(req.body.embed.title)
+          .setURL(req.body.embed.url)
+          .setAuthor({
+            name: req.body.embed.author.name,
+            iconURL: req.body.embed.author.iconUrl,
+            url: req.body.embed.author.url,
+          })
+          .setThumbnail(req.body.embed.thumbnail.url)
+          .addFields(req.body.embed.fields)
+          .setImage(req.body.embed.image.url);
+
+        await message
+          .edit({ content: info.notification_message, embeds: [embed] })
+          .catch(console.error);
+      })
+      .catch(console.error);
+  });
+  res.send();
 });
 
 app.listen(8001, () => {
-	console.log('Discord is listening on port 8001');
+  console.log('Discord is listening on port 8001');
 });
+
+async function checkServerWhitelist(guildId) {
+  try {
+    waitfordb();
+    const res = await fetch('http://database:8002/servers');
+    if (!res.ok) return false;
+    const whitelist = await res.json();
+    return whitelist?.some(({ guild_id }) => guild_id === guildId) ?? false;
+  } catch (error) {
+    console.error('Failed to verify server whitelist:', error);
+    return false;
+  }
+}
+
+function waitfordb(DBUrl, interval = 1500, attempts = 10) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  let count = 1;
+
+  // eslint-disable-next-line no-async-promise-executor
+  return new Promise(async (resolve, reject) => {
+    while (count < attempts) {
+      await sleep(interval);
+
+      try {
+        const response = await fetch('http://database:8002');
+        if (response.ok) {
+          if (response.status === 200) {
+            resolve();
+            break;
+          }
+        } else {
+          count++;
+        }
+      } catch {
+        count++;
+        console.log(`Database still down, trying ${count} of ${attempts}`);
+      }
+    }
+
+    reject(new Error(`Database is down: ${count} attempts tried`));
+  });
+}
