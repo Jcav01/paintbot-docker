@@ -180,6 +180,7 @@ async function checkServerWhitelist(guildId) {
     const res = await fetch('http://database:8002/servers');
     if (!res.ok) return false;
     const whitelist = await res.json();
+    console.log(whitelist);
     return whitelist?.some(({ guild_id }) => guild_id === guildId) ?? false;
   } catch (error) {
     console.error('Failed to verify server whitelist:', error);
