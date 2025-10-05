@@ -14,9 +14,9 @@ const asyncHandler = (fn) => (req, res, next) =>
 // enable middleware to parse body of Content-type: application/json
 app.use(express.json());
 
-// Get list of notification types for a specific notification source
+// Basic health endpoint used by Kubernetes probes
 app.get(
-  '',
+  '/',
   asyncHandler(async (req, res) => {
     res.sendStatus(200);
   })
