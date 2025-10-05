@@ -326,7 +326,7 @@ app.get(
   '/servers',
   asyncHandler(async (req, res) => {
     console.log('Received request to get servers');
-    const result = await db.query('SELECT * FROM servers');
+    const result = await db.query('SELECT server_id FROM servers');
     res.json(result.rows);
   })
 );

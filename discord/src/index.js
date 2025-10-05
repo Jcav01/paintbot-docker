@@ -52,13 +52,19 @@ for (const folder of commandFolders) {
 client.once(Events.ClientReady, (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
   client.guilds.cache.forEach((guild) => {
-    if (!checkServerWhitelist(guild.id)) guild.leave();
+    if (!checkServerWhitelist(guild.id)) {
+      console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
+      guild.leave();
+    }
   });
 });
 
 // Check if a server is in the whitelist when joining a new one
 client.on(Events.GuildCreate, (guild) => {
-  if (!checkServerWhitelist(guild.id)) guild.leave();
+  if (!checkServerWhitelist(guild.id)) {
+    console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
+    guild.leave();
+  }
 });
 
 // Hande slash commands
@@ -174,14 +180,14 @@ app.listen(8001, () => {
   console.log('Discord is listening on port 8001');
 });
 
-async function checkServerWhitelist(guildId) {
+async function checkServerWhitelist(serverId) {
   try {
     waitfordb();
     const res = await fetch('http://database:8002/servers');
     if (!res.ok) return false;
     const whitelist = await res.json();
     console.log(whitelist);
-    return whitelist?.some(({ guild_id }) => guild_id === guildId) ?? false;
+    return whitelist?.map((server) => server.server_id).includes(serverId) ?? false;
   } catch (error) {
     console.error('Failed to verify server whitelist:', error);
     return false;
