@@ -49,25 +49,27 @@ for (const folder of commandFolders) {
 }
 
 // When the client is ready, run this code (only once)
-client.once(Events.ClientReady, (c) => {
+client.once(Events.ClientReady, async (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
-  client.guilds.cache.forEach((guild) => {
-    if (!checkServerWhitelist(guild.id)) {
+  for (const guild of client.guilds.cache.values()) {
+    const isWhitelisted = await checkServerWhitelist(guild.id);
+    if (!isWhitelisted) {
       console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
-      guild.leave();
+      await guild.leave();
     }
-  });
-});
-
-// Check if a server is in the whitelist when joining a new one
-client.on(Events.GuildCreate, (guild) => {
-  if (!checkServerWhitelist(guild.id)) {
-    console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
-    guild.leave();
   }
 });
 
-// Hande slash commands
+// Check if a server is in the whitelist when joining a new one
+client.on(Events.GuildCreate, async (guild) => {
+  const isWhitelisted = await checkServerWhitelist(guild.id);
+  if (!isWhitelisted) {
+    console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
+    await guild.leave();
+  }
+});
+
+// Handle slash commands
 client.on(Events.InteractionCreate, async (interaction) => {
   // Ignore interactions that are not slash commands
   if (!interaction.isChatInputCommand()) return;
@@ -182,7 +184,7 @@ app.listen(8001, () => {
 
 async function checkServerWhitelist(serverId) {
   try {
-    waitfordb();
+    await waitfordb();
     const res = await fetch('http://database:8002/servers/' + serverId);
     if (!res.ok) return false;
     const result = await res.json();
