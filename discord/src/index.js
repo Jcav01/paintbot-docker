@@ -54,7 +54,7 @@ client.once(Events.ClientReady, async (c) => {
   for (const guild of client.guilds.cache.values()) {
     const isWhitelisted = await checkServerWhitelist(guild.id);
     if (!isWhitelisted) {
-      console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
+      console.log(`Leaving guild ${guild.id} as it is not in the whitelist`);
       await guild.leave();
     }
   }
@@ -64,7 +64,7 @@ client.once(Events.ClientReady, async (c) => {
 client.on(Events.GuildCreate, async (guild) => {
   const isWhitelisted = await checkServerWhitelist(guild.id);
   if (!isWhitelisted) {
-    console.warn(`Leaving guild ${guild.id} as it is not in the whitelist`);
+    console.log(`Leaving guild ${guild.id} as it is not in the whitelist`);
     await guild.leave();
   }
 });
@@ -188,7 +188,6 @@ async function checkServerWhitelist(serverId) {
     const res = await fetch('http://database:8002/servers/' + serverId);
     if (!res.ok) return false;
     const result = await res.json();
-    console.log(`Whitelist check for server ${serverId}: ${result?.whitelisted ?? false}`);
     return result?.whitelisted ?? false;
   } catch (error) {
     console.error('Failed to verify server whitelist:', error);
