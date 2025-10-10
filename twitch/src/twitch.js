@@ -187,7 +187,7 @@ async function handleStreamOnline(event) {
   const lastUpdateRes = await fetch(
     `http://database:8002/notifications/history/${event.broadcasterId}/channel.update`
   );
-  const lastUpdate = await lastUpdateRes.json();
+  const lastUpdate = (await lastUpdateRes.json())[0];
 
   // Based on last update, get the game
   const game = await apiClient.games.getGameById(lastUpdate.notification_info.categoryId);
