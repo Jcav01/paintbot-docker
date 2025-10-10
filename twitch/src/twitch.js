@@ -150,7 +150,6 @@ async function handleStreamOnline(event) {
   // Get the source to check if they're online
   const sourceRes = await fetch(`http://database:8002/source/${event.broadcasterId}`);
   const source = await sourceRes.json();
-  console.table(source);
 
   // If stream is already online, don't do anything
   if (source[0].is_online) {
@@ -162,22 +161,20 @@ async function handleStreamOnline(event) {
     `http://database:8002/destinations/source/${event.broadcasterId}`
   );
   const destinations = await destinationRes.json();
-  console.table(destinations);
 
   // Get the last offline notification for the source
-  const lastNotifRes = await fetch(
+  const lastOfflineRes = await fetch(
     `http://database:8002/notifications/history/${event.broadcasterId}/stream.offline`
   );
-  const lastNotif = await lastNotifRes.json();
-  console.table(lastNotif);
+  const lastOffline = await lastOfflineRes.json();
 
   // If there was a previous offline notification, check if it was within the minimum interval of any destination
-  if (lastNotif[0]) {
+  if (lastOffline[0]) {
     const now = new Date().getTime();
-    const lastOffline = new Date(lastNotif[0].received_date).getTime();
+    const lastOfflineTime = new Date(lastOffline[0].received_date).getTime();
     destinations.forEach((destination) => {
       // If the last offline notification was within the minumum interval of a destination, remove the destination from the list
-      if (lastOffline + destination.minimum_interval * 60000 > now) {
+      if (lastOfflineTime + destination.minimum_interval * 60000 > now) {
         const index = destinations.indexOf(destination);
         if (index > -1) {
           destinations.splice(index, 1);
@@ -186,23 +183,15 @@ async function handleStreamOnline(event) {
     });
   }
 
-  // Allow some time for Twitch to update the stream info
-  await new Promise((r) => setTimeout(r, 500));
-  // Create an object to POST to the Discord webhook
-  let stream = await event.getStream();
-  if (!stream) {
-    for (let i = 0; i < 4; i++) {
-      stream = await event.getStream();
-      if (stream) break;
-      await new Promise((r) => setTimeout(r, 750));
-    }
-  }
-  let game;
-  if (stream) {
-    game = await stream.getGame();
-  } else {
-    console.warn('Failed to get stream data after several attempts, using default values');
-  }
+  // Get the last update notification for the source
+  const lastUpdateRes = await fetch(
+    `http://database:8002/notifications/history/${event.broadcasterId}/channel.update`
+  );
+  const lastUpdate = await lastUpdateRes.json();
+
+  // Based on last update, get the game
+  const game = await apiClient.games.getGameById(lastUpdate.notification_info.categoryId);
+
   const user = await event.getBroadcaster();
   // Create an object to POST to the Discord webhook
   const embed_data = JSON.stringify({
@@ -215,7 +204,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: stream?.title ?? 'Untitled Broadcast',
+      title: lastUpdate.notification_info.streamTitle ?? 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
@@ -230,7 +219,7 @@ async function handleStreamOnline(event) {
       fields: [
         {
           name: 'Game',
-          value: stream?.gameName ?? 'N/A',
+          value: game.name ?? 'N/A',
         },
       ],
       image: {
