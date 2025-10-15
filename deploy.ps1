@@ -30,9 +30,6 @@ function Print-Usage {
     Write-Host "  help            Show this help message"
     Write-Host ""
     Write-Host "Services: database, discord, twitch, youtube" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Security Note: This script no longer applies secret YAML files." -ForegroundColor Yellow
-    Write-Host "Use 'create-secrets' command or manually create secrets with kubectl." -ForegroundColor Yellow
 }
 
 function Setup-GKE {
@@ -324,12 +321,16 @@ function Setup-And-Create-Secrets {
         Write-Host "Database secrets not found. Creating..." -ForegroundColor Cyan
         $dbPassword = Read-Host "Enter your PostgreSQL password" -AsSecureString
         $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
-        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name" -AsSecureString
+        $dbUser = Read-Host "Enter your PostgreSQL user"
+        $dbUserPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbUser))
+        $dbName = Read-Host "Enter your PostgreSQL database name"
+        $dbNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbName))
+        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name"
         $dbConnectionNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbConnectionName))
     kubectl create secret generic database-secrets $nsOpt `
             --from-literal=postgres-password="$dbPasswordPlain" `
-            --from-literal=postgres-user="paintbot" `
-            --from-literal=postgres-db="paintbot" `
+            --from-literal=postgres-user="$dbUserPlain" `
+            --from-literal=postgres-db="$dbNamePlain" `
             --from-literal=instanceConnectionName="$dbConnectionNamePlain"
         Write-Host "✓ Database secrets created" -ForegroundColor Green
     } else {
