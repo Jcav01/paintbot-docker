@@ -189,8 +189,34 @@ async function handleStreamOnline(event) {
   );
   const lastUpdate = (await lastUpdateRes.json())[0];
 
-  // Based on last update, get the game
-  const game = await apiClient.games.getGameById(lastUpdate.notification_info.categoryId);
+  let game = null;
+
+  if (lastUpdate) {
+    // If last update exists, use it to get the game
+    game = await apiClient.games.getGameById(lastUpdate.notification_info.categoryId);
+  } else {
+    // If no last update, get the game from the stream
+    // Allow some time for Twitch to update the stream info
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Create an object to POST to the Discord webhook
+    let stream = await event.getStream();
+    if (!stream) {
+      for (let i = 0; i < 4; i++) {
+        stream = await event.getStream();
+
+        if (stream) break;
+
+        await new Promise((r) => setTimeout(r, 750));
+      }
+    }
+
+    if (stream) {
+      game = await stream.getGame();
+    } else {
+      console.warn('Failed to get stream data after several attempts, using default values');
+    }
+  }
 
   const user = await event.getBroadcaster();
   // Create an object to POST to the Discord webhook
