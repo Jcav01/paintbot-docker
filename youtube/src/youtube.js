@@ -9,7 +9,7 @@ const app = express();
 // Environment-specific hostname for callbacks/referer
 const HOSTNAME = process.env.HOSTNAME || 'dev.paintbot.net';
 
-const lease_seconds = 7200; // 2 hours
+const lease_seconds = 864000; // 10 days
 
 // In Kubernetes, secrets are mounted as individual files in a directory
 const secretsPath = '/etc/secrets';
@@ -278,7 +278,7 @@ async function setupYouTubeNotification(source_id) {
     // Optional verification/secret fields; leave empty or wire to a secret to validate signatures
     'hub.verify_token': '',
     // 'hub.secret': '<your-shared-secret>',
-    'hub.lease_seconds': lease_seconds, // 2 hours
+    'hub.lease_seconds': lease_seconds,
   };
 
   const body = new URLSearchParams(hub).toString();
