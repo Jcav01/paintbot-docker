@@ -1,9 +1,15 @@
-const { SlashCommandBuilder, InteractionContextType, MessageFlags } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  InteractionContextType,
+  PermissionFlagsBits,
+  MessageFlags,
+} = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('edit')
     .setDescription('Will be used to update notifications. Not implemented yet.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .setContexts([InteractionContextType.Guild]),
   async execute(interaction) {
     // interaction.user is the object representing the User who ran the command
