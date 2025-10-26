@@ -4,4 +4,4 @@ metadata:
   name: app-config
   namespace: development
 data:
-  HOSTNAME: dev.paintbot.net
+  PUBLIC_HOSTNAME: dev.paintbot.net

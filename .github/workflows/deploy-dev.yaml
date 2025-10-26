@@ -63,6 +63,17 @@ jobs:
         run: |-
           kubectl get ns development || kubectl create ns development
 
+      # Verify secrets exist before deployment
+      - name: Verify Kubernetes Secrets Exist
+        run: |-
+          echo "Checking for required secrets..."
+          kubectl get secret twitch-secrets -n development || (echo "❌ twitch-secrets not found" && exit 1)
+          kubectl get secret discord-secrets -n development || (echo "❌ discord-secrets not found" && exit 1)
+          kubectl get secret database-secrets -n development || (echo "❌ database-secrets not found" && exit 1)
+          kubectl get secret youtube-secrets -n development || (echo "❌ youtube-secrets not found" && exit 1)
+          kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
+          echo "✅ All required secrets found"
+
       # Build and push Docker images with dev tag
       - name: Build and Push Database Image
         run: |-
@@ -95,17 +106,6 @@ jobs:
           docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
           docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
           docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-
-      # Verify secrets exist before deployment
-      - name: Verify Kubernetes Secrets Exist
-        run: |-
-          echo "Checking for required secrets..."
-          kubectl get secret twitch-secrets -n development || (echo "❌ twitch-secrets not found" && exit 1)
-          kubectl get secret discord-secrets -n development || (echo "❌ discord-secrets not found" && exit 1)
-          kubectl get secret database-secrets -n development || (echo "❌ database-secrets not found" && exit 1)
-          kubectl get secret youtube-secrets -n development || (echo "❌ youtube-secrets not found" && exit 1)
-          kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
-          echo "✅ All required secrets found"
 
       # Apply config and Deploy via Kustomize overlay
       - name: Deploy to GKE
