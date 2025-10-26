@@ -190,6 +190,7 @@ async function handleStreamOnline(event) {
   const lastUpdate = await lastUpdateRes.json();
 
   let game = null;
+  let stream = null;
 
   if (lastUpdate[0]?.notification_info) {
     // If last update exists, use it to get the game
@@ -201,7 +202,7 @@ async function handleStreamOnline(event) {
     await new Promise((r) => setTimeout(r, 500));
 
     // Create an object to POST to the Discord webhook
-    let stream = await event.getStream();
+    stream = await event.getStream();
     if (!stream) {
       for (let i = 0; i < 4; i++) {
         stream = await event.getStream();
@@ -231,7 +232,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: lastUpdate?.notification_info?.streamTitle ?? 'Untitled Broadcast',
+      title: lastUpdate?.notification_info?.streamTitle ?? stream?.title ?? 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
