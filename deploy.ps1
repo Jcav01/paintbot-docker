@@ -18,7 +18,8 @@ function Print-Usage {
     Write-Host ""
     Write-Host "Commands:" -ForegroundColor Cyan
     Write-Host "  setup           Setup GKE cluster and required resources"
-    Write-Host "  create-secrets  Interactive secret creation helper"
+    Write-Host "  create-secrets  Interactive secret creation helper" 
+    Write-Host "                 (use: .\\deploy.ps1 create-secrets [namespace], e.g. 'development')" -ForegroundColor DarkGray
     Write-Host "  build           Build all Docker images"
     Write-Host "  push            Push all Docker images to registry"
     Write-Host "  deploy          Deploy to GKE cluster"
@@ -29,9 +30,6 @@ function Print-Usage {
     Write-Host "  help            Show this help message"
     Write-Host ""
     Write-Host "Services: database, discord, twitch, youtube" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Security Note: This script no longer applies secret YAML files." -ForegroundColor Yellow
-    Write-Host "Use 'create-secrets' command or manually create secrets with kubectl." -ForegroundColor Yellow
 }
 
 function Setup-GKE {
@@ -72,7 +70,7 @@ function Setup-GKE {
 function Build-Images {
     Write-Host "Building Docker images..." -ForegroundColor Yellow
     
-    $services = @("database", "discord", "twitch")
+    $services = @("database", "discord", "twitch", "youtube")
     
     foreach ($service in $services) {
         if ((Test-Path $service) -and (Test-Path "$service\Dockerfile")) {
@@ -85,14 +83,6 @@ function Build-Images {
         }
     }
     
-    # Check for YouTube service
-    if ((Test-Path "youtube") -and (Test-Path "youtube\Dockerfile")) {
-        Write-Host "Building youtube..." -ForegroundColor Cyan
-        Set-Location youtube
-        docker build -t "$Registry/$ProjectId/paintbot/youtube`:latest" .
-        Set-Location ..
-    }
-    
     Write-Host "Build complete!" -ForegroundColor Green
 }
 
@@ -102,7 +92,7 @@ function Push-Images {
     # Configure Docker auth
     gcloud auth configure-docker $Registry --quiet
     
-    $services = @("database", "discord", "twitch")
+    $services = @("database", "discord", "twitch", "youtube")
     
     foreach ($service in $services) {
         $imageName = "$Registry/$ProjectId/paintbot/$service"
@@ -112,15 +102,6 @@ function Push-Images {
             Write-Host "Pushing $service..." -ForegroundColor Cyan
             docker push "$imageName`:latest"
         }
-    }
-    
-    # Push YouTube if exists
-    $youtubeImage = "$Registry/$ProjectId/paintbot/youtube"
-    $youtubeExists = docker images --format "{{.Repository}}:{{.Tag}}" | Select-String "$youtubeImage`:latest"
-    
-    if ($youtubeExists) {
-        Write-Host "Pushing youtube..." -ForegroundColor Cyan
-        docker push "$youtubeImage`:latest"
     }
     
     Write-Host "Push complete!" -ForegroundColor Green
@@ -164,6 +145,7 @@ function Deploy-ToGKE {
     kubectl wait --for=condition=available --timeout=300s deployment/database
     kubectl wait --for=condition=available --timeout=300s deployment/discord
     kubectl wait --for=condition=available --timeout=300s deployment/twitch
+    kubectl wait --for=condition=available --timeout=300s deployment/youtube
     
     Write-Host "Deployment complete!" -ForegroundColor Green
     Write-Host "Run '.\deploy.ps1 status' to check the deployment status" -ForegroundColor Cyan
@@ -175,7 +157,7 @@ function Deploy-Dev {
     # Check if secrets exist in development namespace
     $devSecretsExist = $true
     
-    $services = @("twitch-secrets", "discord-secrets", "database-secrets", "paintbot-service-account")
+    $services = @("twitch-secrets", "discord-secrets", "database-secrets", "youtube-secrets", "paintbot-service-account")
     foreach ($service in $services) {
         $secretExists = kubectl get secret $service -n development 2>$null
         if ($LASTEXITCODE -ne 0) {
@@ -191,6 +173,7 @@ function Deploy-Dev {
         Write-Host "kubectl get secret discord-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
         Write-Host "kubectl get secret database-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
         Write-Host "kubectl get secret paintbot-service-account -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
+        Write-Host "kubectl get secret youtube-secrets -o yaml | ForEach-Object { $_ -replace 'namespace: .*', 'namespace: development' } | kubectl apply -f -" -ForegroundColor Cyan
     }
     
     # Apply ConfigMaps to development namespace
@@ -228,6 +211,7 @@ function Deploy-Dev {
     kubectl wait --for=condition=available --timeout=300s deployment/database -n development
     kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
     kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
+    kubectl wait --for=condition=available --timeout=300s deployment/youtube -n development
 
     Write-Host "Development deployment complete!" -ForegroundColor Green
 }
@@ -275,12 +259,16 @@ function Cleanup {
 }
 
 function Setup-And-Create-Secrets {
+    param([string]$Namespace = "")
     Write-Host "Secret Setup & Creation Helper" -ForegroundColor Yellow
     Write-Host "This will check for and create all required secrets interactively if missing." -ForegroundColor Cyan
     Write-Host "" 
 
+    $nsOpt = ""
+    if ($Namespace -and $Namespace.Trim() -ne "") { $nsOpt = "-n=$Namespace" }
+
     # Twitch secrets
-    $twitchSecretExists = kubectl get secret twitch-secrets 2>$null
+    $twitchSecretExists = kubectl get secret twitch-secrets $nsOpt 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Twitch secrets not found. Creating..." -ForegroundColor Cyan
         $twitchClientId = Read-Host "Enter your Twitch Client ID"
@@ -288,7 +276,7 @@ function Setup-And-Create-Secrets {
         $twitchEventSubSecret = Read-Host "Enter your Twitch EventSub Secret" -AsSecureString
         $twitchClientSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchClientSecret))
         $twitchEventSubSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchEventSubSecret))
-        kubectl create secret generic twitch-secrets `
+    kubectl create secret generic twitch-secrets $nsOpt `
             --from-literal=client-id="$twitchClientId" `
             --from-literal=client-secret="$twitchClientSecretPlain" `
             --from-literal=eventsub-secret="$twitchEventSubSecretPlain"
@@ -298,30 +286,51 @@ function Setup-And-Create-Secrets {
     }
 
     # Discord secrets
-    $discordSecretExists = kubectl get secret discord-secrets 2>$null
+    $discordSecretExists = kubectl get secret discord-secrets $nsOpt 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Discord secrets not found. Creating..." -ForegroundColor Cyan
         $discordToken = Read-Host "Enter your Discord Bot Token" -AsSecureString
         $discordTokenPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($discordToken))
-        kubectl create secret generic discord-secrets `
+    kubectl create secret generic discord-secrets $nsOpt `
             --from-literal=bot-token="$discordTokenPlain"
         Write-Host "✓ Discord secrets created" -ForegroundColor Green
     } else {
         Write-Host "✓ Discord secrets found" -ForegroundColor Green
     }
 
+    # YouTube secrets
+    $youtubeSecretExists = kubectl get secret youtube-secrets $nsOpt 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "YouTube secrets not found. Creating..." -ForegroundColor Cyan
+        $ytApiKey = Read-Host "Enter your YouTube Data API key" -AsSecureString
+        $ytApiKeyPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($ytApiKey))
+        $ytWebhookSecret = Read-Host "Enter your YouTube WebSub Secret (optional, press Enter to skip)" -AsSecureString
+        $ytWebhookSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($ytWebhookSecret))
+        if (-not $ytWebhookSecretPlain) { $ytWebhookSecretPlain = "" }
+    kubectl create secret generic youtube-secrets $nsOpt `
+            --from-literal=youtube-api-key="$ytApiKeyPlain" `
+            --from-literal=webhook-secret="$ytWebhookSecretPlain"
+        Write-Host "✓ YouTube secrets created" -ForegroundColor Green
+    } else {
+        Write-Host "✓ YouTube secrets found" -ForegroundColor Green
+    }
+
     # Database secrets
-    $databaseSecretExists = kubectl get secret database-secrets 2>$null
+    $databaseSecretExists = kubectl get secret database-secrets $nsOpt 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Database secrets not found. Creating..." -ForegroundColor Cyan
         $dbPassword = Read-Host "Enter your PostgreSQL password" -AsSecureString
         $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
-        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name" -AsSecureString
+        $dbUser = Read-Host "Enter your PostgreSQL user"
+        $dbUserPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbUser))
+        $dbName = Read-Host "Enter your PostgreSQL database name"
+        $dbNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbName))
+        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name"
         $dbConnectionNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbConnectionName))
-        kubectl create secret generic database-secrets `
+    kubectl create secret generic database-secrets $nsOpt `
             --from-literal=postgres-password="$dbPasswordPlain" `
-            --from-literal=postgres-user="paintbot" `
-            --from-literal=postgres-db="paintbot" `
+            --from-literal=postgres-user="$dbUserPlain" `
+            --from-literal=postgres-db="$dbNamePlain" `
             --from-literal=instanceConnectionName="$dbConnectionNamePlain"
         Write-Host "✓ Database secrets created" -ForegroundColor Green
     } else {
@@ -329,12 +338,12 @@ function Setup-And-Create-Secrets {
     }
 
     # Service Account
-    $serviceAccountExists = kubectl get secret paintbot-service-account 2>$null
+    $serviceAccountExists = kubectl get secret paintbot-service-account $nsOpt 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Service account secret not found. Creating..." -ForegroundColor Cyan
         $keyPath = Read-Host "Enter path to your service account key.json file"
         if (Test-Path $keyPath) {
-            kubectl create secret generic paintbot-service-account `
+            kubectl create secret generic paintbot-service-account $nsOpt `
                 --from-file=key.json="$keyPath"
             Write-Host "✓ Service account secret created" -ForegroundColor Green
         } else {
@@ -356,7 +365,8 @@ switch ($Command.ToLower()) {
         Setup-GKE
     }
     "create-secrets" {
-        Setup-And-Create-Secrets
+    # Pass the optional namespace (provided as the second CLI arg) through to the helper
+    Setup-And-Create-Secrets -Namespace $Service
     }
     "build" {
         Build-Images

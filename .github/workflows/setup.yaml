@@ -132,6 +132,13 @@ jobs:
           echo "✓ Twitch build successful"
         fi
 
+        # Test youtube build
+        if [ -f "youtube/Dockerfile" ]; then
+          echo "Building youtube image..."
+          cd youtube && docker build -t test-youtube . && cd ..
+          echo "✓ YouTube build successful"
+        fi
+
     - name: Create Namespaces
       if: ${{ github.event.inputs.validate_only != 'true' }}
       run: |-

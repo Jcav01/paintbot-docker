@@ -1,0 +1,73 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: development
+resources:
+  - ../../base
+  - ./configmap.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: database
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: database
+      spec:
+        replicas: 1
+  - target:
+      kind: Deployment
+      name: database
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: database
+      spec:
+        template:
+          metadata:
+            annotations:
+              cluster-autoscaler.kubernetes.io/safe-to-evict: null
+          spec:
+            affinity: null
+            containers:
+              - name: database
+                resources:
+                  requests:
+                    cpu: "50m"
+                    memory: "256Mi"
+                  limits:
+                    cpu: "50m"
+                    memory: "256Mi"
+  - target:
+      kind: Deployment
+      name: twitch
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: twitch
+      spec:
+        template:
+          spec:
+            containers:
+              - name: twitch
+                envFrom:
+                  - configMapRef:
+                      name: app-config
+  - target:
+      kind: Deployment
+      name: youtube
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: youtube
+      spec:
+        template:
+          spec:
+            containers:
+              - name: youtube
+                envFrom:
+                  - configMapRef:
+                      name: app-config
