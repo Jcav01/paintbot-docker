@@ -232,7 +232,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: lastUpdate?.notification_info?.streamTitle ?? stream?.title ?? 'Untitled Broadcast',
+      title: lastUpdate[0]?.notification_info?.streamTitle ?? stream?.title ?? 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
