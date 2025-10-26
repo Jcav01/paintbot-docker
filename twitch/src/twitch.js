@@ -187,20 +187,22 @@ async function handleStreamOnline(event) {
   const lastUpdateRes = await fetch(
     `http://database:8002/notifications/history/${event.broadcasterId}/channel.update`
   );
-  const lastUpdate = (await lastUpdateRes.json())[0];
+  const lastUpdate = await lastUpdateRes.json();
 
   let game = null;
+  let stream = null;
 
-  if (lastUpdate) {
+  if (lastUpdate[0]?.notification_info) {
     // If last update exists, use it to get the game
-    game = await apiClient.games.getGameById(lastUpdate.notification_info.categoryId);
+    game = await apiClient.games.getGameById(lastUpdate[0].notification_info.categoryId);
   } else {
     // If no last update, get the game from the stream
     // Allow some time for Twitch to update the stream info
+    console.warn('Getting stream info...');
     await new Promise((r) => setTimeout(r, 500));
 
     // Create an object to POST to the Discord webhook
-    let stream = await event.getStream();
+    stream = await event.getStream();
     if (!stream) {
       for (let i = 0; i < 4; i++) {
         stream = await event.getStream();
@@ -230,7 +232,7 @@ async function handleStreamOnline(event) {
       };
     }),
     embed: {
-      title: lastUpdate?.notification_info?.streamTitle ?? 'Untitled Broadcast',
+      title: lastUpdate?.notification_info?.streamTitle ?? stream?.title ?? 'Untitled Broadcast',
       url: `https://www.twitch.tv/${event.broadcasterName}`,
       thumbnail: {
         url: game
