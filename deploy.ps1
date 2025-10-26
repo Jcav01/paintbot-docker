@@ -264,11 +264,13 @@ function Setup-And-Create-Secrets {
     Write-Host "This will check for and create all required secrets interactively if missing." -ForegroundColor Cyan
     Write-Host "" 
 
-    $nsOpt = ""
-    if ($Namespace -and $Namespace.Trim() -ne "") { $nsOpt = "-n=$Namespace" }
+    $nsArgs = @()
+    if ($Namespace -and $Namespace.Trim() -ne "") {
+        $nsArgs = @("--namespace", $Namespace.Trim())
+    }
 
     # Twitch secrets
-    $twitchSecretExists = kubectl get secret twitch-secrets $nsOpt 2>$null
+    $twitchSecretExists = kubectl get secret twitch-secrets @nsArgs 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Twitch secrets not found. Creating..." -ForegroundColor Cyan
         $twitchClientId = Read-Host "Enter your Twitch Client ID"
@@ -276,7 +278,7 @@ function Setup-And-Create-Secrets {
         $twitchEventSubSecret = Read-Host "Enter your Twitch EventSub Secret" -AsSecureString
         $twitchClientSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchClientSecret))
         $twitchEventSubSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($twitchEventSubSecret))
-    kubectl create secret generic twitch-secrets $nsOpt `
+    kubectl create secret generic twitch-secrets @nsArgs `
             --from-literal=client-id="$twitchClientId" `
             --from-literal=client-secret="$twitchClientSecretPlain" `
             --from-literal=eventsub-secret="$twitchEventSubSecretPlain"
@@ -286,12 +288,12 @@ function Setup-And-Create-Secrets {
     }
 
     # Discord secrets
-    $discordSecretExists = kubectl get secret discord-secrets $nsOpt 2>$null
+    $discordSecretExists = kubectl get secret discord-secrets @nsArgs 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Discord secrets not found. Creating..." -ForegroundColor Cyan
         $discordToken = Read-Host "Enter your Discord Bot Token" -AsSecureString
         $discordTokenPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($discordToken))
-    kubectl create secret generic discord-secrets $nsOpt `
+    kubectl create secret generic discord-secrets @nsArgs `
             --from-literal=bot-token="$discordTokenPlain"
         Write-Host "✓ Discord secrets created" -ForegroundColor Green
     } else {
@@ -299,7 +301,7 @@ function Setup-And-Create-Secrets {
     }
 
     # YouTube secrets
-    $youtubeSecretExists = kubectl get secret youtube-secrets $nsOpt 2>$null
+    $youtubeSecretExists = kubectl get secret youtube-secrets @nsArgs 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "YouTube secrets not found. Creating..." -ForegroundColor Cyan
         $ytApiKey = Read-Host "Enter your YouTube Data API key" -AsSecureString
@@ -307,7 +309,7 @@ function Setup-And-Create-Secrets {
         $ytWebhookSecret = Read-Host "Enter your YouTube WebSub Secret (optional, press Enter to skip)" -AsSecureString
         $ytWebhookSecretPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($ytWebhookSecret))
         if (-not $ytWebhookSecretPlain) { $ytWebhookSecretPlain = "" }
-    kubectl create secret generic youtube-secrets $nsOpt `
+    kubectl create secret generic youtube-secrets @nsArgs `
             --from-literal=youtube-api-key="$ytApiKeyPlain" `
             --from-literal=webhook-secret="$ytWebhookSecretPlain"
         Write-Host "✓ YouTube secrets created" -ForegroundColor Green
@@ -316,18 +318,18 @@ function Setup-And-Create-Secrets {
     }
 
     # Database secrets
-    $databaseSecretExists = kubectl get secret database-secrets $nsOpt 2>$null
+    $databaseSecretExists = kubectl get secret database-secrets @nsArgs 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Database secrets not found. Creating..." -ForegroundColor Cyan
         $dbPassword = Read-Host "Enter your PostgreSQL password" -AsSecureString
         $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
-        $dbUser = Read-Host "Enter your PostgreSQL user"
+        $dbUser = Read-Host "Enter your PostgreSQL user" -AsSecureString
         $dbUserPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbUser))
-        $dbName = Read-Host "Enter your PostgreSQL database name"
+        $dbName = Read-Host "Enter your PostgreSQL database name" -AsSecureString
         $dbNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbName))
-        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name"
+        $dbConnectionName = Read-Host "Enter your PostgreSQL connection name" -AsSecureString
         $dbConnectionNamePlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbConnectionName))
-    kubectl create secret generic database-secrets $nsOpt `
+    kubectl create secret generic database-secrets @nsArgs `
             --from-literal=postgres-password="$dbPasswordPlain" `
             --from-literal=postgres-user="$dbUserPlain" `
             --from-literal=postgres-db="$dbNamePlain" `
@@ -338,12 +340,12 @@ function Setup-And-Create-Secrets {
     }
 
     # Service Account
-    $serviceAccountExists = kubectl get secret paintbot-service-account $nsOpt 2>$null
+    $serviceAccountExists = kubectl get secret paintbot-service-account @nsArgs 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Service account secret not found. Creating..." -ForegroundColor Cyan
         $keyPath = Read-Host "Enter path to your service account key.json file"
         if (Test-Path $keyPath) {
-            kubectl create secret generic paintbot-service-account $nsOpt `
+            kubectl create secret generic paintbot-service-account @nsArgs `
                 --from-file=key.json="$keyPath"
             Write-Host "✓ Service account secret created" -ForegroundColor Green
         } else {

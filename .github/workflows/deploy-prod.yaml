@@ -88,11 +88,11 @@ jobs:
       - name: Verify Kubernetes Secrets Exist (production)
         run: |
           echo "Checking for required secrets..."
-          kubectl get secret twitch-secrets -n production || (echo "❌ twitch-secrets not found" && exit 1)
-          kubectl get secret discord-secrets -n production || (echo "❌ discord-secrets not found" && exit 1)
-          kubectl get secret database-secrets -n production || (echo "❌ database-secrets not found" && exit 1)
-          kubectl get secret youtube-secrets -n production || (echo "❌ youtube-secrets not found" && exit 1)
-          kubectl get secret paintbot-service-account -n production || (echo "❌ paintbot-service-account not found" && exit 1)
+          kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found" && exit 1)
+          kubectl get secret discord-secrets || (echo "❌ discord-secrets not found" && exit 1)
+          kubectl get secret database-secrets || (echo "❌ database-secrets not found" && exit 1)
+          kubectl get secret youtube-secrets || (echo "❌ youtube-secrets not found" && exit 1)
+          kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found" && exit 1)
           echo "✅ All required secrets found"
 
       - name: Deploy to GKE
@@ -102,33 +102,33 @@ jobs:
       - name: Verify deployment
         run: |-
           # Wait for deployments to be ready
-          kubectl wait --for=condition=available --timeout=300s deployment/database -n production
-          kubectl wait --for=condition=available --timeout=300s deployment/discord -n production
-          kubectl wait --for=condition=available --timeout=300s deployment/twitch -n production
-          kubectl wait --for=condition=available --timeout=300s deployment/youtube -n production
+          kubectl wait --for=condition=available --timeout=300s deployment/database
+          kubectl wait --for=condition=available --timeout=300s deployment/discord
+          kubectl wait --for=condition=available --timeout=300s deployment/twitch
+          kubectl wait --for=condition=available --timeout=300s deployment/youtube
 
           # Show deployment status
-          kubectl get deployments -n production
-          kubectl get pods -n production
-          kubectl get services -o wide -n production
+          kubectl get deployments
+          kubectl get pods
+          kubectl get services -o wide
 
       # Update deployment with new image tags
       - name: Update Database deployment image
         run: |-
-          kubectl set image deployment/database database="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" -n production
-          kubectl rollout status deployment/database -n production
+          kubectl set image deployment/database database="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA"
+          kubectl rollout status deployment/database
 
       - name: Update Discord deployment image
         run: |-
-          kubectl set image deployment/discord discord="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" -n production
-          kubectl rollout status deployment/discord -n production
+          kubectl set image deployment/discord discord="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA"
+          kubectl rollout status deployment/discord
 
       - name: Update Twitch deployment image
         run: |-
-          kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" -n production
-          kubectl rollout status deployment/twitch -n production
+          kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA"
+          kubectl rollout status deployment/twitch
 
       - name: Update YouTube deployment image
         run: |-
-          kubectl set image deployment/youtube youtube="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" -n production
-          kubectl rollout status deployment/youtube -n production
+          kubectl set image deployment/youtube youtube="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
+          kubectl rollout status deployment/youtube
