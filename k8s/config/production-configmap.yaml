@@ -4,4 +4,4 @@ metadata:
   name: app-config
   namespace: production
 data:
-  HOSTNAME: paintbot.net
+  PUBLIC_HOSTNAME: paintbot.net
