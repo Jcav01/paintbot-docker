@@ -49,8 +49,15 @@ jobs:
       - name: Get GKE credentials
         run: gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
-      - name: Ensure production namespace exists
-        run: kubectl get ns production || kubectl create ns production
+      - name: Verify Kubernetes Secrets Exist (production)
+        run: |
+          echo "Checking for required secrets..."
+          kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found" && exit 1)
+          kubectl get secret discord-secrets || (echo "❌ discord-secrets not found" && exit 1)
+          kubectl get secret database-secrets || (echo "❌ database-secrets not found" && exit 1)
+          kubectl get secret youtube-secrets || (echo "❌ youtube-secrets not found" && exit 1)
+          kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found" && exit 1)
+          echo "✅ All required secrets found"
 
       # Build and push Docker images
       - name: Build and Push Database Image
@@ -84,16 +91,6 @@ jobs:
           docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
           docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
           docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-
-      - name: Verify Kubernetes Secrets Exist (production)
-        run: |
-          echo "Checking for required secrets..."
-          kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found" && exit 1)
-          kubectl get secret discord-secrets || (echo "❌ discord-secrets not found" && exit 1)
-          kubectl get secret database-secrets || (echo "❌ database-secrets not found" && exit 1)
-          kubectl get secret youtube-secrets || (echo "❌ youtube-secrets not found" && exit 1)
-          kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found" && exit 1)
-          echo "✅ All required secrets found"
 
       - name: Deploy to GKE
         run: |
