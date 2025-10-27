@@ -312,31 +312,36 @@ async function setupYouTubeNotification(source_id) {
   });
 }
 
-function waitfordb(DBUrl, interval = 2500, attempts = 10) {
+function waitfordb(DBUrl, interval = 1500, attempts = 10) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  let count = 1;
+  const targetUrl = DBUrl || 'http://database:8002';
 
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve, reject) => {
-    while (count <= attempts) {
-      await sleep(interval);
+    let delay = interval;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) {
+        await sleep(delay);
+        delay *= 2;
+      }
 
       try {
-        const response = await fetch(DBUrl);
-        if (response.ok) {
+        const response = await fetch(targetUrl);
+        if (response.ok && response.status === 200) {
           resolve();
           return;
-        } else {
-          count++;
         }
       } catch {
-        count++;
-        console.log(`Database still down, trying ${count} of ${attempts}`);
+        // ignore error; retry after backoff
+      }
+
+      if (attempt < attempts) {
+        console.log(`Database still down, trying ${attempt + 1} of ${attempts}`);
       }
     }
 
-    reject(new Error(`Database is down: ${count} attempts tried`));
+    reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
 }
 

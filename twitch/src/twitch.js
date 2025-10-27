@@ -451,31 +451,34 @@ async function handleChannelUpdate(event) {
 
 function waitfordb(DBUrl, interval = 1500, attempts = 10) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  let count = 1;
+  const targetUrl = DBUrl || 'http://database:8002';
 
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve, reject) => {
-    while (count < attempts) {
-      await sleep(interval);
+    let delay = interval;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) {
+        await sleep(delay);
+        delay *= 2;
+      }
 
       try {
-        const response = await fetch(DBUrl);
-        if (response.ok) {
-          if (response.status === 200) {
-            resolve();
-            break;
-          }
-        } else {
-          count++;
+        const response = await fetch(targetUrl);
+        if (response.ok && response.status === 200) {
+          resolve();
+          return;
         }
       } catch {
-        count++;
-        console.log(`Database still down, trying ${count} of ${attempts}`);
+        // ignore error; retry after backoff
+      }
+
+      if (attempt < attempts) {
+        console.log(`Database still down, trying ${attempt + 1} of ${attempts}`);
       }
     }
 
-    reject(new Error(`Database is down: ${count} attempts tried`));
+    reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
 }
 

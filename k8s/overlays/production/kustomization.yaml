@@ -4,7 +4,6 @@ namespace: default
 resources:
   - ../../base
   - ./configmap.yaml
-  - pdb.yaml
 patches:
   - target:
       kind: Deployment
