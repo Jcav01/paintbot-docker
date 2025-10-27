@@ -13,8 +13,6 @@ patches:
       kind: Deployment
       metadata:
         name: database
-      spec:
-        replicas: 2
   - target:
       kind: Deployment
       name: twitch
