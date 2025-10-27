@@ -191,7 +191,7 @@ async function checkServerWhitelist(serverId) {
     return result?.whitelisted ?? false;
   } catch (error) {
     console.error('Failed to verify server whitelist:', error);
-    return false;
+    return true; // Default to true if DB is unreachable
   }
 }
 
