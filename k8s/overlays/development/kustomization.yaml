@@ -25,9 +25,6 @@ patches:
         name: database
       spec:
         template:
-          metadata:
-            annotations:
-              cluster-autoscaler.kubernetes.io/safe-to-evict: null
           spec:
             affinity: null
             containers:
