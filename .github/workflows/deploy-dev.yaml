@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/cloudflared"
-          printf '%s' "${{ secrets.CLOUDFLARED_CREDENTIALS }}" > "$RUNNER_TEMP/cloudflared/credentials.json"
+          printf '%s' "${{ secrets.CLOUDFLARED_CREDENTIALS_B64 }}" | base64 --decode > "$RUNNER_TEMP/cloudflared/credentials.json"
           kubectl create secret generic cloudflared-credentials \
             --from-file=credentials.json="$RUNNER_TEMP/cloudflared/credentials.json" \
             --namespace development \
