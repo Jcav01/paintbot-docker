@@ -6,3 +6,4 @@ resources:
   - apps/discord/deployment.yaml
   - apps/twitch/deployment.yaml
   - apps/youtube/deployment.yaml
+  - apps/cloudflared/deployment.yaml

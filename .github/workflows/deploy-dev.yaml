@@ -63,6 +63,16 @@ jobs:
         run: |-
           kubectl get ns development || kubectl create ns development
 
+      - name: Sync Cloudflared tunnel credentials
+        run: |-
+          mkdir -p "$RUNNER_TEMP/cloudflared"
+          echo "${{ secrets.CLOUDFLARED_CREDENTIALS }}" > "$RUNNER_TEMP/cloudflared/credentials.json"
+          kubectl create secret generic cloudflared-credentials \
+            --from-file=credentials.json="$RUNNER_TEMP/cloudflared/credentials.json" \
+            --namespace development \
+            --dry-run=client -o yaml | kubectl apply -f -
+        shell: bash
+
       # Verify secrets exist before deployment
       - name: Verify Kubernetes Secrets Exist
         run: |-
@@ -72,6 +82,7 @@ jobs:
           kubectl get secret database-secrets -n development || (echo "❌ database-secrets not found" && exit 1)
           kubectl get secret youtube-secrets -n development || (echo "❌ youtube-secrets not found" && exit 1)
           kubectl get secret paintbot-service-account -n development || (echo "❌ paintbot-service-account not found" && exit 1)
+          kubectl get secret cloudflared-credentials -n development || (echo "❌ cloudflared-credentials not found" && exit 1)
           echo "✅ All required secrets found"
 
       # Build and push Docker images with dev tag

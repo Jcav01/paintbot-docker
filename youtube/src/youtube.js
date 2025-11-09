@@ -7,7 +7,7 @@ import xmlbodyparser from 'express-xml-bodyparser';
 const app = express();
 
 // Environment-specific hostname for callbacks/referer
-const HOSTNAME = process.env.PUBLIC_HOSTNAME || 'dev.paintbot.net';
+const HOSTNAME = process.env.YOUTUBE_PUBLIC_HOSTNAME || 'dev.paintbot.net';
 
 const lease_seconds = 864000; // 10 days
 
