@@ -89,3 +89,13 @@ patches:
             - hostname: youtubedev.paintbot.net
               service: http://youtube.development.svc.cluster.local:8005
             - service: http_status:404
+  - target:
+      kind: Deployment
+      name: cloudflared
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cloudflared
+      spec:
+        replicas: 1
