@@ -50,13 +50,13 @@ jobs:
         run: gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
       - name: Sync Cloudflared tunnel credentials
+        shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/cloudflared"
-          echo "${{ secrets.CLOUDFLARED_CREDENTIALS }}" > "$RUNNER_TEMP/cloudflared/credentials.json"
+          printf '%s' "${{ secrets.CLOUDFLARED_CREDENTIALS }}" > "$RUNNER_TEMP/cloudflared/credentials.json"
           kubectl create secret generic cloudflared-credentials \
             --from-file=credentials.json="$RUNNER_TEMP/cloudflared/credentials.json" \
             --dry-run=client -o yaml | kubectl apply -f -
-        shell: bash
 
       - name: Verify Kubernetes Secrets Exist (production)
         run: |
