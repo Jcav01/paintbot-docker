@@ -68,3 +68,31 @@ patches:
                 envFrom:
                   - configMapRef:
                       name: app-config
+  - target:
+      kind: ConfigMap
+      name: cloudflared-config
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: cloudflared-config
+      data:
+        config.yaml: |
+          tunnel: 24fb2e30-22f3-4d27-9921-cf9771e5dacf
+          credentials-file: /etc/cloudflared/credentials/credentials.json
+          ingress:
+            - hostname: twitchdev.paintbot.net
+              service: http://twitch.development.svc.cluster.local:8004
+            - hostname: youtubedev.paintbot.net
+              service: http://youtube.development.svc.cluster.local:8005
+            - service: http_status:404
+  - target:
+      kind: Deployment
+      name: cloudflared
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cloudflared
+      spec:
+        replicas: 1

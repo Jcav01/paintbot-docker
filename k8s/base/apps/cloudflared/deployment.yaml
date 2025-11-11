@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  labels:
+    app: cloudflared
+data:
+  config.yaml: |
+    # Replace the tunnel UUID and hostnames through an overlay before enabling this deployment.
+    tunnel: TUNNEL_UUID_PLACEHOLDER
+    credentials-file: /etc/cloudflared/credentials/credentials.json
+    ingress:
+      - hostname: twitch.example.com
+        service: http://twitch.default.svc.cluster.local:8004
+      - service: http_status:404
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  labels:
+    app: cloudflared
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - run
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-credentials
+                  key: tunnel-token
+                  optional: true
+          volumeMounts:
+            - name: cloudflared-config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: cloudflared-credentials
+              mountPath: /etc/cloudflared/credentials
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: cloudflared-config
+          configMap:
+            name: cloudflared-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+        - name: cloudflared-credentials
+          secret:
+            secretName: cloudflared-credentials
+            optional: true

@@ -4,4 +4,5 @@ metadata:
   name: app-config
   namespace: default
 data:
-  PUBLIC_HOSTNAME: paintbot.net
+  TWITCH_PUBLIC_HOSTNAME: twitch.paintbot.net
+  YOUTUBE_PUBLIC_HOSTNAME: youtube.paintbot.net

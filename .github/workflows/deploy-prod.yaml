@@ -49,6 +49,15 @@ jobs:
       - name: Get GKE credentials
         run: gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
+      - name: Sync Cloudflared tunnel credentials
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/cloudflared"
+          printf '%s' "${{ secrets.CLOUDFLARED_CREDENTIALS_B64 }}" | base64 --decode > "$RUNNER_TEMP/cloudflared/credentials.json"
+          kubectl create secret generic cloudflared-credentials \
+            --from-file=credentials.json="$RUNNER_TEMP/cloudflared/credentials.json" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Verify Kubernetes Secrets Exist (production)
         run: |
           echo "Checking for required secrets..."
@@ -57,6 +66,7 @@ jobs:
           kubectl get secret database-secrets || (echo "❌ database-secrets not found" && exit 1)
           kubectl get secret youtube-secrets || (echo "❌ youtube-secrets not found" && exit 1)
           kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found" && exit 1)
+          kubectl get secret cloudflared-credentials || (echo "❌ cloudflared-credentials not found" && exit 1)
           echo "✅ All required secrets found"
 
       # Build and push Docker images
