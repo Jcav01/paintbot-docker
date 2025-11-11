@@ -5,18 +5,46 @@ updates:
     directory: "/discord"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/database"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/twitch"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: npm
     target-branch: "develop"
     directory: "/youtube"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

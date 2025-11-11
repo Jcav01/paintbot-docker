@@ -247,7 +247,7 @@ async function handleStreamOnline(event) {
       fields: [
         {
           name: 'Game',
-          value: game.name ?? 'N/A',
+          value: game?.name ?? 'N/A',
         },
       ],
       image: {
