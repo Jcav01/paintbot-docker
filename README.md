@@ -1,424 +1,211 @@
 # Paintbot
+
 [![Dependabot Updates](https://github.com/Jcav01/paintbot-docker/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Jcav01/paintbot-docker/actions/workflows/dependabot/dependabot-updates)
 [![Deployment](https://github.com/Jcav01/paintbot-docker/actions/workflows/deploy-prod.yaml/badge.svg)](https://github.com/Jcav01/paintbot-docker/actions/workflows/deploy-prod.yaml)
 
-This repository contains the Docker-based microservices architecture iteration of Paintbot, with automated deployment to Google Kubernetes Engine (GKE) using GitHub Actions.
+Paintbot orchestrates live-content notifications so Twitch and YouTube events can be surfaced in Discord servers. This repository hosts the Dockerized services, Kubernetes manifests, and CI/CD automation that power the production deployment on Google Kubernetes Engine (GKE).
 
-## Architecture
+## Overview
 
-The application consists of the following services:
-- **Database**: PostgreSQL database service
-- **Discord**: Discord bot service
-- **Twitch**: Twitch integration service
-- **YouTube**: YouTube integration service (optional)
+- Node.js microservices for Discord command handling, Twitch EventSub ingestion, YouTube WebSub ingestion, and a PostgreSQL-backed API.
+- Containers run locally through Docker Compose and in production on GKE; Cloud SQL provides the database backend.
+- Secrets are delivered as Kubernetes secrets and mounted as read-only files, keeping credentials out of environment variables and git history.
+- GitHub Actions build images in Artifact Registry, synchronize Cloudflare tunnel credentials, and apply Kustomize overlays for development and production.
 
-## Prerequisites
+## Service Topology
 
-### Local Development
-- Docker and Docker Compose
-- Node.js 18+ 
-- Google Cloud SDK (`gcloud`)
-- `kubectl` CLI tool
+| Service     | Description                                                                                                                            | Container Port | Notes                                                                                                                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| database    | Express API that fronts the Cloud SQL PostgreSQL instance; exposes REST endpoints for sources, destinations, and notification history. | 8002           | Requires `/etc/secrets/{postgres-user,postgres-password,postgres-db,instanceConnectionName}` plus a service account key mounted at `/etc/service-account/key.json`. |
+| discord     | Discord bot runtime that manages slash commands and emits embeds/messages into channels.                                               | 8001           | Reads token from `/etc/secrets/bot-token`; talks to `database`, `twitch`, and `youtube`.                                                                            |
+| twitch      | Handles Twitch EventSub subscriptions and forwards live state changes to Discord.                                                      | 8004           | Needs `/etc/secrets/{client-id,client-secret,eventsub-secret}` and `TWITCH_PUBLIC_HOSTNAME`.                                                                        |
+| youtube     | Optional service that consumes YouTube WebSub notifications and posts to Discord.                                                      | 8005           | Uses `/etc/secrets/youtube-api-key` and `YOUTUBE_PUBLIC_HOSTNAME`.                                                                                                  |
+| cloudflared | Lightweight Cloudflare Tunnel sidecar that backhauls HTTPS traffic to in-cluster services.                                             | n/a            | Disabled by default; enable via overlays once credentials are in place.                                                                                             |
 
-### GKE Deployment
-- Google Cloud Project with billing enabled
-- GKE API enabled
-- Container Registry API enabled
-- A GKE cluster (or use the setup script to create one)
+## Repository Layout
 
-## Quick Start
+- Core services: `database/`, `discord/`, `twitch/`, `youtube/` each contain source, Dockerfile, and local secret stubs.
+- Kubernetes manifests: `k8s/` holds base definitions, environment overlays, config maps, and secret templates.
+- CI/CD workflows: `.github/workflows/` define setup, development, and production GitHub Actions pipelines.
+- Discord tooling: `deploy-commands/` publishes slash commands (expects a local `config.json` with Discord token and application id).
+- Documentation & helpers: `docs/`, `deploy.ps1`, and `database/scripts/` cover EventSub setup, PowerShell helpers, and schema scaffolding.
 
-### Local Development with Docker Compose
+## Local Development
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd paintbot-docker
-```
+### Prerequisites
 
-2. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+- Docker Desktop 4.x (or newer) with Compose v2 enabled.
+- Node.js 20 LTS (18+ works) and npm for linting and utility scripts.
+- Google Cloud SDK (`gcloud`) if you need Artifact Registry or Cloud SQL access from your workstation.
+- Discord bot token, Twitch application credentials, and (optionally) YouTube API key.
 
-3. Start the services:
-```bash
-docker-compose up -d
-```
+### Prepare environment files
 
-### GKE Deployment Setup
+1. Copy the sample env: `cp .env.example .env` and adjust values you want to override for local runs (for example `NODE_ENV=development`).
+2. Populate secret files that mirror the Kubernetes mount layout. Each file must contain only the secret value and should remain untracked by git:
+   ```
+   discord/secrets/bot-token
+   twitch/secrets/client-id
+   twitch/secrets/client-secret
+   twitch/secrets/eventsub-secret
+   database/secrets/postgres-user
+   database/secrets/postgres-password
+   database/secrets/postgres-db
+   database/secrets/instanceConnectionName
+   database/secrets/service-account/key.json
+   ```
+   Optional: add `youtube/secrets/youtube-api-key` and `youtube/secrets/webhook-secret` if you plan to exercise the YouTube service locally.
+3. Create a Compose override to mount those secrets into the paths the services expect:
+   ```yaml
+   # docker-compose.override.yaml
+   services:
+     discord:
+       volumes:
+         - ./discord/secrets:/etc/secrets:ro
+     twitch:
+       volumes:
+         - ./twitch/secrets:/etc/secrets:ro
+     database:
+       volumes:
+         - ./database/secrets:/etc/secrets:ro
+         - ./database/secrets/service-account:/etc/service-account:ro
+   ```
 
-#### 1. Google Cloud Setup
+### Start the stack
 
-Create a service account and download the key:
-
-```bash
-# Create service account
-gcloud iam service-accounts create paintbot-deployer \
-    --description="Service account for Paintbot GKE deployment" \
-    --display-name="Paintbot Deployer"
-
-# Grant necessary permissions
-gcloud projects add-iam-policy-binding paintbot \
-    --member="serviceAccount:paintbot-deployer@paintbot.iam.gserviceaccount.com" \
-    --role="roles/container.developer"
-
-gcloud projects add-iam-policy-binding paintbot \
-    --member="serviceAccount:paintbot-deployer@paintbot.iam.gserviceaccount.com" \
-    --role="roles/storage.admin"
-
-gcloud projects add-iam-policy-binding paintbot \
-    --member="serviceAccount:paintbot-deployer@paintbot.iam.gserviceaccount.com" \
-    --role="roles/container.clusterAdmin"
-
-# Create and download key
-gcloud iam service-accounts keys create key.json \
-    --iam-account=paintbot-deployer@paintbot.iam.gserviceaccount.com
-```
-
-#### 2. GitHub Secrets Setup
-
-Add the following secrets to your GitHub repository:
-
-- `GCP_SA_KEY`: Content of the service account key file (key.json)
-- `GCP_SA_KEY_DEV`: Service account key for development environment (optional)
-
-#### 3. Kubernetes Secrets
-
-Create the necessary Kubernetes secrets using one of these methods:
-
-**Option 1: Interactive Setup (Recommended)**
 ```powershell
-.\deploy.ps1 create-secrets
+# From the repository root
+docker compose up --build
 ```
 
-**Option 2: Import from Existing JSON Files**
+The Compose file is primarily for smoke-testing the containers. Adjust or extend the override above if you want to include additional services such as `youtube`.
+
+Helpful commands while debugging locally:
+
 ```powershell
-.\deploy.ps1 import-secrets
+docker compose logs -f database
+docker compose exec database sh -c "curl -s http://localhost:8002/"
+docker compose down
 ```
 
-**Option 3: Manual Creation**
-```bash
-# Twitch secrets
+### Linting & formatting
+
+The monorepo uses npm workspaces. Run tooling from the repository root:
+
+```powershell
+npm install
+npm run lint
+npm run lint --workspace=discord
+npm run format --workspace=twitch
+```
+
+### Discord slash commands
+
+Populate `deploy-commands/config.json` (not tracked) with your bot token and application id, then publish slash commands:
+
+```powershell
+npm install --workspace=deploy-commands
+node deploy-commands/deploy-commands.js
+```
+
+## Database schema
+
+The PostgreSQL schema lives in `database/scripts/scaffolding.sql`. Apply it to a fresh Cloud SQL instance (or local Postgres) before pointing services at the database:
+
+```powershell
+psql "sslmode=require host=127.0.0.1 port=5432 dbname=postgres user=paintbot" -f database/scripts/scaffolding.sql
+```
+
+## Kubernetes Deployment
+
+### Requirements
+
+- Google Cloud project with a GKE cluster (Autopilot or Standard) and Artifact Registry repository `northamerica-northeast1-docker.pkg.dev/paintbot/paintbot` (update manifests if you use different coordinates).
+- `gcloud` configured for your project and `kubectl` pointing at the target cluster.
+- Cloudflare tunnel credentials if you plan to expose ingress through `cloudflared`.
+
+### Namespaces & overlays
+
+- Production runs in the `default` namespace via `k8s/overlays/production`.
+- Development runs in the `development` namespace via `k8s/overlays/development`.
+  Create namespaces if they do not exist: `kubectl create namespace development`.
+
+### Required secrets
+
+Create these secrets in every namespace you intend to deploy to (replace placeholder values):
+
+```powershell
 kubectl create secret generic twitch-secrets \
-    --from-literal=client-id="your-twitch-client-id" \
-    --from-literal=client-secret="your-twitch-client-secret" \
-    --from-literal=eventsub-secret="your-eventsub-secret"
+    --from-literal=client-id="..." \
+    --from-literal=client-secret="..." \
+    --from-literal=eventsub-secret="..."
 
-# Discord secrets
 kubectl create secret generic discord-secrets \
-    --from-literal=bot-token="your-discord-bot-token"
+    --from-literal=bot-token="discord-bot-token"
 
-# Database secrets (including Cloud SQL connection)
+kubectl create secret generic youtube-secrets \
+    --from-literal=youtube-api-key="..." \
+    --from-literal=webhook-secret="optional" --dry-run=client -o yaml | kubectl apply -f -
+
 kubectl create secret generic database-secrets \
-    --from-literal=postgres-password="your-database-password" \
     --from-literal=postgres-user="paintbot" \
+    --from-literal=postgres-password="..." \
     --from-literal=postgres-db="paintbot" \
-    --from-literal=instance-connection-name="you-cloud-sql-connection-name"
+    --from-literal=instanceConnectionName="gcp-project:region:instance"
 
-# Google Cloud service account key
 kubectl create secret generic paintbot-service-account \
-    --from-file=key.json=path/to/your/service-account-key.json
+    --from-file=key.json=path/to/service-account.json
+
+kubectl create secret generic cloudflared-credentials \
+    --from-file=credentials.json=path/to/cloudflare/credentials.json \
+    --from-literal=tunnel-token="optional-token"
 ```
 
-## Deployment Scripts
+### Apply manifests
 
-### Using PowerShell (Windows)
+Use Kustomize overlays rather than individual manifests:
 
 ```powershell
-# Setup GKE cluster (Autopilot)
-.\deploy.ps1 setup
-
-# Create secrets interactively
-.\deploy.ps1 create-secrets
-
-# Build Docker images
-.\deploy.ps1 build
-
-# Push images to registry
-.\deploy.ps1 push
-
-# Deploy to production
-.\deploy.ps1 deploy
-
-# Deploy to development
-.\deploy.ps1 deploy-dev
-
-# Check status
-.\deploy.ps1 status
-
-# View logs
-.\deploy.ps1 logs database
-
-# Debug issues
-.\deploy.ps1 debug database
+kubectl apply -k k8s/overlays/development
+kubectl apply -k k8s/overlays/production
 ```
 
-## GitHub Actions Workflows
+Verify deployments:
 
-**Important**: The GitHub Actions workflows need to be updated to work with the new Kubernetes secrets approach. Currently, they reference outdated secret management methods.
-
-### Current Workflows
-
-### 1. CI Pipeline (`ci.yaml`)
-- Runs on every push and pull request
-- Tests all services with multiple Node.js versions
-- Performs security scanning with Trivy
-- Builds Docker images for testing
-
-### 2. Production Deployment (`deploy-to-gke.yaml`)
-- Triggers on pushes to `main` branch
-- Builds and pushes Docker images
-
-### 3. Development Deployment (`deploy-dev.yaml`)
-- Triggers on pushes to `develop` branch
-- Deploys to development namespace
-
-### 4. Release Pipeline (`release.yaml`)
-- Triggers on version tags (v*)
-- Creates tagged Docker images
-- Creates GitHub releases
-
-### 5. Setup and Validation (`setup.yaml`)
-- Manual workflow for initial setup
-- Validates secrets using `kubectl get secret`
-
-
-### GitHub Actions: Current State
-
-All workflows now use the new Kubernetes secrets approach:
-
-1. **Secret validation**: Workflows check for required secrets using `kubectl get secret` before deployment.
-2. **No secret YAML files**: Secret YAML file application steps have been removed.
-3. **Deployment**: Uses combined deployment manifests for all services.
-
-**No manual workaround needed.**
-Secrets should be created using the provided PowerShell script or manually with `kubectl` before running deployments.
-
-## Environment Configuration
-
-### Production
-- Namespace: `default`
-- Cluster: `paintbot-cluster`
-- Images tagged with `latest` and commit SHA
-
-### Development  
-- Namespace: `development`
-- Cluster: `paintbot-dev-cluster` (or same cluster, different namespace)
-- Images tagged with `dev-{SHA}`
-
-## Monitoring and Troubleshooting
-
-### Quick Debugging
 ```powershell
-# Comprehensive debugging for a service
-.\deploy.ps1 debug database
-.\deploy.ps1 debug discord
-.\deploy.ps1 debug twitch
+kubectl wait --for=condition=available --timeout=300s deployment/database -n development
+kubectl get pods -n development
+kubectl get services -n development
 ```
 
-### View Pod Status
-```bash
-kubectl get pods
-kubectl describe pod <pod-name>
-```
+### Cloudflare tunnel
 
-### View Logs
-```bash
-kubectl logs -f deployment/database
-kubectl logs -f deployment/discord
-kubectl logs -f deployment/twitch
+The production overlay includes a `cloudflared` deployment to route HTTPS traffic through Cloudflare instead of Google HTTP(S) Load Balancing. Populate `k8s/secrets/cloudflared-credentials-template.yaml`, update hostnames in `k8s/overlays/production/configmap.yaml`, and follow `docs/twitch-eventsub-production.md` for the full setup.
 
-# View previous crashed container logs
-kubectl logs deployment/database --previous
-```
+## GitHub Actions
 
-### Check Secrets
-```bash
-# Verify secrets exist
-kubectl get secrets
+| Workflow           | Trigger                              | Purpose                                                                                                          | Secrets & Vars                                                                                     |
+| ------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `deploy-dev.yaml`  | Push to `develop` or manual dispatch | Builds images, syncs Cloudflare credentials, applies the development overlay, and updates deployment image tags. | `WORKLOAD_IDENTITY_PROVIDER`, `CLOUDFLARED_CREDENTIALS_B64`, repository variable `GKE_PROJECT_ID`. |
+| `deploy-prod.yaml` | Push to `main`                       | Same pipeline targeting the production namespace (`default`).                                                    | Same as above (production environment).                                                            |
+| `setup.yaml`       | Manual dispatch                      | Optionally creates the cluster, validates manifests, and smoke-tests Docker builds.                              | `GCP_SA_KEY` (JSON service account) for bootstrap tasks.                                           |
 
-# Check secret contents (without revealing values)
-kubectl describe secret database-secrets
-kubectl describe secret discord-secrets
-kubectl describe secret twitch-secrets
-```
+Workflows abort early if required secrets are missing; make sure the cluster holds all of the Kubernetes secrets listed above.
 
-### Check Services
-```bash
-kubectl get services
-kubectl get ingress
-```
+## PowerShell helper (legacy)
 
-### Port Forwarding for Local Testing
-```bash
-# Database service
-kubectl port-forward service/database 8002:8002
+`deploy.ps1` remains available for ad-hoc builds, image pushes, secret creation, and log inspection from Windows. Use `./deploy.ps1 create-secrets [namespace]` to interactively populate Kubernetes secrets, then rely on `kubectl apply -k ...` for deployments; the hard-coded manifest paths in the script are deprecated.
 
-# Discord service  
-kubectl port-forward service/discord 8001:8001
+## Troubleshooting
 
-# Twitch service
-kubectl port-forward service/twitch 8004:8004
-```
+- `kubectl logs deployment/twitch -f -n development` to inspect EventSub errors.
+- `kubectl describe secret twitch-secrets -n development` verifies secret keys without printing values.
+- `kubectl port-forward service/database 8002:8002 -n development` lets you probe REST endpoints directly.
+- `docker compose logs -f discord` for local debugging before shipping changes.
+- For Twitch ingress quirks and SSL guidance, read `docs/twitch-eventsub-production.md`.
 
-### Common Issues
+## Contributing & Support
 
-1. **Database connection errors**: Check if Cloud SQL instance is running and accessible
-2. **Secret mounting issues**: Verify secrets exist and are properly named
-3. **Image pull errors**: Ensure Docker registry authentication is working
-4. **Pod crashes**: Use `.\deploy.ps1 debug <service>` for detailed troubleshooting
-
-## Security Considerations
-
-1. **Secrets Management**: All sensitive data is stored as individual Kubernetes secrets (not JSON files)
-2. **No secrets in Git**: All secret values are created via kubectl and never committed to repository
-3. **Image Security**: Trivy scanning is integrated into CI pipeline
-4. **RBAC**: Use service accounts with minimal required permissions
-5. **Secret file mounting**: Secrets are mounted as individual files for better security
-6. **Network Policies**: Consider implementing network policies for production
-
-### Secret Security Features
-- **Individual secret files**: Each secret value is a separate mounted file
-- **Read-only mounts**: All secrets are mounted read-only
-- **No environment variable exposure**: Secrets not visible in `kubectl describe pod`
-- **Automatic rotation support**: Secrets can be updated without image rebuilds
-
-## Scaling
-
-### Manual Scaling
-```bash
-kubectl scale deployment database --replicas=3
-kubectl scale deployment discord --replicas=2
-kubectl scale deployment twitch --replicas=2
-```
-
-### Horizontal Pod Autoscaler
-```bash
-kubectl autoscale deployment twitch --cpu-percent=50 --min=1 --max=10
-```
-
-## Backup and Recovery
-
-### Database Backup
-```bash
-# Create backup job
-kubectl create job --from=cronjob/database-backup database-backup-manual
-```
-
-### Configuration Backup
-```bash
-# Export all configurations
-kubectl get all,secrets,configmaps -o yaml > backup.yaml
-```
-
-## Contributing
-
-1. Create a feature branch from `develop`
-2. Make your changes
-3. Push to your branch - this will trigger development deployment
-4. Create a pull request to `develop`
-5. After review, merge to `develop`
-6. For releases, create a pull request from `develop` to `main`
-
-## Support
-
-For issues and questions:
-
-### Troubleshooting Steps
-1. **Use the debug command**: `.\deploy.ps1 debug <service-name>`
-2. **Check GitHub Actions logs** for deployment issues
-3. **Review Kubernetes events**: `kubectl get events --sort-by=.metadata.creationTimestamp`
-4. **Check pod logs**: `kubectl logs <pod-name>`
-5. **Verify secrets**: `kubectl get secrets` and `kubectl describe secret <secret-name>`
-
-### Common Issues and Solutions
-
-**Database crashes (exit code 1)**:
-```powershell
-.\deploy.ps1 debug database
-# Check if Cloud SQL instance exists and secrets are correct
-```
-
-**Secret not found errors**:
-```powershell
-# Recreate secrets
-.\deploy.ps1 create-secrets
-```
-
-**Image pull errors**:
-```powershell
-# Re-authenticate with registry
-gcloud auth configure-docker northamerica-northeast1-docker.pkg.dev
-```
-
-**Pod startup failures**:
-```powershell
-# Check pod events and logs
-kubectl describe pod <pod-name>
-kubectl logs <pod-name> --previous
-```
-
-### Getting Help
-- Create an issue in this repository with debug output
-- Include output from `.\deploy.ps1 debug <service>`
-- Provide relevant pod logs and events
-
-
-## First-Time Setup Guide
-
-### 1. Prerequisites Check
-```powershell
-# Verify required tools are installed
-gcloud --version
-kubectl version --client
-docker --version
-```
-
-### 2. Google Cloud Setup
-```powershell
-# Authenticate with Google Cloud
-gcloud auth login
-
-# Set your project
-gcloud config set project paintbot
-
-# Enable required APIs
-gcloud services enable container.googleapis.com
-gcloud services enable containerregistry.googleapis.com
-```
-
-### 3. Complete Setup
-```powershell
-# Clone and navigate to repository
-git clone <repository-url>
-cd paintbot-docker
-
-# Set up GKE cluster (Autopilot)
-.\deploy.ps1 setup
-
-# Create secrets (interactive)
-.\deploy.ps1 create-secrets
-
-# Build and deploy
-.\deploy.ps1 build
-.\deploy.ps1 push
-.\deploy.ps1 deploy
-
-# Verify deployment
-.\deploy.ps1 status
-```
-
-### 4. Verify Everything Works
-```powershell
-# Check all pods are running
-kubectl get pods
-
-# Check services are accessible
-kubectl get services
-
-# Test connectivity
-kubectl port-forward service/database 8002:8002
-# Test: curl http://localhost:8002
-```
+- Branch from `develop`, push updates, and open a PR; merges into `develop` deploy automatically to the development namespace.
+- Run linting before opening a PR (`npm run lint`).
+- File issues with output from `kubectl` or `./deploy.ps1 debug <service>` when reporting bugs.
