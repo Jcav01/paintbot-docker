@@ -31,10 +31,10 @@ spec:
                 name: app-config
           resources:
             requests:
-              memory: '192Mi'
+              memory: '128Mi'
               cpu: '5m'
             limits:
-              memory: '192Mi'
+              memory: '128Mi'
               cpu: '10m'
       volumes:
         - name: twitch-secrets
