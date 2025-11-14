@@ -97,7 +97,7 @@ app.delete('/remove', express.json(), async (req, res) => {
     await waitfordb('http://database:8002');
 
     const handle = (req.body.source_username || '').replace(/^@/, '');
-    const response = youtube.channels.list({
+    const response = await youtube.channels.list({
       part: 'id',
       forHandle: handle,
     });
