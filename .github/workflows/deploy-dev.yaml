@@ -31,8 +31,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-images:
+    name: Build and Push Service Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: database
+            build-args: ''
+          - service: discord
+            build-args: ''
+          - service: twitch
+            build-args: NODE_ENV=production
+          - service: youtube
+            build-args: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: '${{ vars.GKE_PROJECT_ID }}'
+          workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: gcloud auth configure-docker $REGISTRY --quiet
+
+      - name: Build and push ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:buildcache,mode=max
+          build-args: ${{ matrix.build-args || '' }}
+          provenance: false
+
   deploy-dev:
     name: Deploy to Development Environment
+    needs: build-images
     runs-on: ubuntu-latest
     environment: Development
 
@@ -85,39 +131,6 @@ jobs:
           kubectl get secret cloudflared-credentials -n development || (echo "❌ cloudflared-credentials not found" && exit 1)
           echo "✅ All required secrets found"
 
-      # Build and push Docker images with dev tag
-      - name: Build and Push Database Image
-        run: |-
-          cd database
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
-
-      - name: Build and Push Discord Image
-        run: |-
-          cd discord
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
-
-      - name: Build and Push Twitch Image
-        run: |-
-          cd twitch
-          docker build --build-arg NODE_ENV=production -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
-
-      - name: Build and Push YouTube Image
-        run: |-
-          cd youtube
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-
       # Apply config and Deploy via Kustomize overlay
       - name: Deploy to GKE
         run: |-
@@ -126,10 +139,7 @@ jobs:
       - name: Verify deployment
         run: |-
           # Wait for deployments to be ready
-          kubectl wait --for=condition=available --timeout=300s deployment/database -n development
-          kubectl wait --for=condition=available --timeout=300s deployment/discord -n development
-          kubectl wait --for=condition=available --timeout=300s deployment/twitch -n development
-          kubectl wait --for=condition=available --timeout=300s deployment/youtube -n development
+          kubectl wait --for=condition=available --timeout=300s deployment/database deployment/discord deployment/twitch deployment/youtube -n development
 
           # Show deployment status
           kubectl get deployments -n development
@@ -137,22 +147,9 @@ jobs:
           kubectl get services -o wide -n development
 
       # Update deployment with new image tags
-      - name: Update Database deployment image
+      - name: Update deployment images
         run: |-
-          kubectl set image deployment/database database="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" -n development
-          kubectl rollout status deployment/database -n development
-
-      - name: Update Discord deployment image
-        run: |-
-          kubectl set image deployment/discord discord="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" -n development
-          kubectl rollout status deployment/discord -n development
-
-      - name: Update Twitch deployment image
-        run: |-
-          kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" -n development
-          kubectl rollout status deployment/twitch -n development
-
-      - name: Update YouTube deployment image
-        run: |-
-          kubectl set image deployment/youtube youtube="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" -n development
-          kubectl rollout status deployment/youtube -n development
+          for deployment in database discord twitch youtube; do
+            kubectl set image deployment/$deployment $deployment="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/$deployment:$GITHUB_SHA" -n development
+            kubectl rollout status deployment/$deployment -n development
+          done
