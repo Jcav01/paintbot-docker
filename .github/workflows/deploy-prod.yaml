@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'Production'
+        type: choice
+        options:
+          - Production
 permissions:
   id-token: write
   contents: read
@@ -21,10 +30,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup-build-publish-deploy:
-    name: Setup, Build, Publish, and Deploy
+  build-images:
+    name: Build and Push Service Images
     runs-on: ubuntu-latest
-    environment: Production
+    strategy:
+      matrix:
+        include:
+          - service: database
+            build-args: ''
+          - service: discord
+            build-args: ''
+          - service: twitch
+            build-args: NODE_ENV=production
+          - service: youtube
+            build-args: ''
 
     steps:
       - name: Checkout
@@ -34,14 +53,57 @@ jobs:
         name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ vars.GKE_PROJECT_ID }}
-          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: '${{ vars.GKE_PROJECT_ID }}'
+          workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GKE_SA_EMAIL }}'
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Install auth plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+      - name: Authenticate docker to Artifact Registry
+        run: |
+          gcloud auth configure-docker $REGISTRY --quiet
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Build and push ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: ${{ matrix.build-args || '' }}
+          provenance: false
+
+  deploy-prod:
+    name: Deploy to Production Environment
+    needs: build-images
+    runs-on: ubuntu-latest
+    environment: Production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          project_id: '${{ vars.GKE_PROJECT_ID }}'
+          workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Install auth plugin'
+        run: 'gcloud components install gke-gcloud-auth-plugin --quiet'
 
       - name: Configure Docker to use gcloud as a credential helper
         run: gcloud auth configure-docker $REGISTRY --quiet
@@ -56,86 +118,43 @@ jobs:
           printf '%s' "${{ secrets.CLOUDFLARED_CREDENTIALS_B64 }}" | base64 --decode > "$RUNNER_TEMP/cloudflared/credentials.json"
           kubectl create secret generic cloudflared-credentials \
             --from-file=credentials.json="$RUNNER_TEMP/cloudflared/credentials.json" \
+            --namespace default \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Verify Kubernetes Secrets Exist (production)
-        run: |
+      # Verify secrets exist before deployment
+      - name: Verify Kubernetes Secrets Exist
+        run: |-
           echo "Checking for required secrets..."
-          kubectl get secret twitch-secrets || (echo "❌ twitch-secrets not found" && exit 1)
-          kubectl get secret discord-secrets || (echo "❌ discord-secrets not found" && exit 1)
-          kubectl get secret database-secrets || (echo "❌ database-secrets not found" && exit 1)
-          kubectl get secret youtube-secrets || (echo "❌ youtube-secrets not found" && exit 1)
-          kubectl get secret paintbot-service-account || (echo "❌ paintbot-service-account not found" && exit 1)
-          kubectl get secret cloudflared-credentials || (echo "❌ cloudflared-credentials not found" && exit 1)
+          kubectl get secret twitch-secrets -n default || (echo "❌ twitch-secrets not found" && exit 1)
+          kubectl get secret discord-secrets -n default || (echo "❌ discord-secrets not found" && exit 1)
+          kubectl get secret database-secrets -n default || (echo "❌ database-secrets not found" && exit 1)
+          kubectl get secret youtube-secrets -n default || (echo "❌ youtube-secrets not found" && exit 1)
+          kubectl get secret paintbot-service-account -n default || (echo "❌ paintbot-service-account not found" && exit 1)
+          kubectl get secret cloudflared-credentials -n default || (echo "❌ cloudflared-credentials not found" && exit 1)
           echo "✅ All required secrets found"
 
-      # Build and push Docker images
-      - name: Build and Push Database Image
-        run: |
-          cd database
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:latest"
-
-      - name: Build and Push Discord Image
-        run: |
-          cd discord
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:latest"
-
-      - name: Build and Push Twitch Image
-        run: |
-          cd twitch
-          docker build --build-arg NODE_ENV=production -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:latest"
-
-      - name: Build and Push YouTube Image
-        run: |
-          cd youtube
-          docker build -t "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" .
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
-          docker tag "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA" "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-          docker push "$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:latest"
-
+      # Apply config and Deploy via Kustomize overlay
       - name: Deploy to GKE
-        run: |
+        run: |-
           kubectl apply -k k8s/overlays/production
 
       - name: Verify deployment
         run: |-
           # Wait for deployments to be ready
-          kubectl wait --for=condition=available --timeout=300s deployment/database
-          kubectl wait --for=condition=available --timeout=300s deployment/discord
-          kubectl wait --for=condition=available --timeout=300s deployment/twitch
-          kubectl wait --for=condition=available --timeout=300s deployment/youtube
+          kubectl wait --for=condition=available --timeout=300s deployment/database -n default
+          kubectl wait --for=condition=available --timeout=300s deployment/discord -n default
+          kubectl wait --for=condition=available --timeout=300s deployment/twitch -n default
+          kubectl wait --for=condition=available --timeout=300s deployment/youtube -n default
 
           # Show deployment status
-          kubectl get deployments
-          kubectl get pods
-          kubectl get services -o wide
+          kubectl get deployments -n default
+          kubectl get pods -n default
+          kubectl get services -o wide -n default
 
       # Update deployment with new image tags
-      - name: Update Database deployment image
+      - name: Update deployment images
         run: |-
-          kubectl set image deployment/database database="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/database:$GITHUB_SHA"
-          kubectl rollout status deployment/database
-
-      - name: Update Discord deployment image
-        run: |-
-          kubectl set image deployment/discord discord="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/discord:$GITHUB_SHA"
-          kubectl rollout status deployment/discord
-
-      - name: Update Twitch deployment image
-        run: |-
-          kubectl set image deployment/twitch twitch="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/twitch:$GITHUB_SHA"
-          kubectl rollout status deployment/twitch
-
-      - name: Update YouTube deployment image
-        run: |-
-          kubectl set image deployment/youtube youtube="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/youtube:$GITHUB_SHA"
-          kubectl rollout status deployment/youtube
+          for deployment in database discord twitch youtube; do
+            kubectl set image deployment/$deployment $deployment="$REGISTRY/$REGISTRY_PROJECT/$REGISTRY_REPO/$deployment:$GITHUB_SHA" -n default
+            kubectl rollout status deployment/$deployment -n default
+          done
