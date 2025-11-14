@@ -70,6 +70,23 @@ jobs:
         with:
           driver: docker-container
 
+      - name: Show active GCP account and access token info
+        run: |
+          gcloud auth list
+          gcloud config list
+          gcloud auth print-identity-token --quiet
+          gcloud auth print-access-token --quiet | head -c 20; echo '...'
+
+      - name: Check caller permissions for Artifact Registry
+        run: |
+          echo "Who am I?"
+          gcloud auth list
+          echo "Testing permissions on Artifact Registry repo..."
+          gcloud artifacts repositories get-iam-policy paintbot \
+            --location=northamerica-northeast1 \
+            --project=paintbot \
+            --format=json
+
       - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v6
         with:
