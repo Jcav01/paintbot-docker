@@ -62,7 +62,8 @@ jobs:
 
       - name: Authenticate docker to Artifact Registry
         run: |
-          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://$REGISTRY
+          gcloud --quiet components install docker-credential-gcloud || true
+          gcloud auth configure-docker $REGISTRY --quiet
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
