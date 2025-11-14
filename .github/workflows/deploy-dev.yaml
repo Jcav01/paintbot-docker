@@ -80,8 +80,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:latest
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REGISTRY_PROJECT }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: ${{ matrix.build-args || '' }}
           provenance: false
 
