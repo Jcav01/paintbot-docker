@@ -204,6 +204,10 @@ Workflows abort early if required secrets are missing; make sure the cluster hol
 - `docker compose logs -f discord` for local debugging before shipping changes.
 - For Twitch ingress quirks and SSL guidance, read `docs/twitch-eventsub-production.md`.
 
+## License
+
+Paintbot is released under the [GNU Affero General Public License v3.0](LICENSE). If you publish modifications or derivative services that interact with users over a network, you must make your modified source available to those users in compliance with section 13 of the AGPL.
+
 ## Contributing & Support
 
 - Branch from `develop`, push updates, and open a PR; merges into `develop` deploy automatically to the development namespace.
