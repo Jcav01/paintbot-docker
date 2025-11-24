@@ -178,7 +178,7 @@ app
 
       // Fetch video details
       const videoResponse = await youtube.videos.list({
-        part: ['snippet', 'status'],
+        part: ['snippet', 'status', 'liveStreamingDetails'],
         id: [videoId],
       });
       const video = videoResponse.data.items?.[0];
@@ -236,9 +236,9 @@ app
       if (stage === 'live') {
         videoMessage = `${video.snippet.channelTitle} is now live! Watch at https://youtu.be/${video.id}`;
       } else if (stage === 'upcoming') {
-        const publishedAt = new Date(video.snippet.publishedAt);
-        const publishedTimestamp = Math.floor(publishedAt.getTime() / 1000);
-        videoMessage = `${video.snippet.channelTitle} has scheduled a live stream/premiere for <t:${publishedTimestamp}:F>: https://youtu.be/${video.id}`;
+        const scheduledDate = new Date(video.liveStreamingDetails.scheduledStartTime);
+        const scheduledTimestamp = Math.floor(scheduledDate.getTime() / 1000);
+        videoMessage = `${video.snippet.channelTitle} has scheduled a live stream/premiere for <t:${scheduledTimestamp}:F>: https://youtu.be/${video.id}`;
       } else {
         // none
         videoMessage = `${video.snippet.channelTitle} has posted a new video: https://youtu.be/${video.id}`;
