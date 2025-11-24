@@ -23,6 +23,7 @@ patches:
       kind: Deployment
       metadata:
         name: database
+
   - target:
       kind: Deployment
       name: twitch
