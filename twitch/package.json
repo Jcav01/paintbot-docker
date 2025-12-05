@@ -17,15 +17,15 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@twurple/api": "^7.3.0",
+    "@twurple/api": "^8.0.2",
     "@twurple/auth": "^7.3.0",
-    "@twurple/eventsub-http": "^7.3.0",
-    "@twurple/eventsub-ngrok": "^7.4.0",
-    "express": "^5.2.0"
+    "@twurple/eventsub-http": "^8.0.2",
+    "express": "^5.2.1"
+    "@twurple/eventsub-ngrok": "^8.0.2",
   },
   "devDependencies": {
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.6.2"
+    "prettier": "^3.7.4"
   }
 }
