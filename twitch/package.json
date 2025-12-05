@@ -19,7 +19,7 @@
   "dependencies": {
     "@twurple/api": "^7.3.0",
     "@twurple/auth": "^7.3.0",
-    "@twurple/eventsub-http": "^7.3.0",
+    "@twurple/eventsub-http": "^8.0.2",
     "@twurple/eventsub-ngrok": "^7.4.0",
     "express": "^5.1.0"
   },
