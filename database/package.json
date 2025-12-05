@@ -18,7 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.8.1",
-    "express": "^5.1.0",
+    "express": "^5.2.0",
     "pg": "^8.16.3"
   },
   "devDependencies": {
