@@ -18,9 +18,8 @@
   "license": "ISC",
   "dependencies": {
     "@twurple/api": "^8.0.2",
-    "@twurple/auth": "^7.3.0",
+    "@twurple/auth": "^8.0.2",
     "@twurple/eventsub-http": "^8.0.2",
-    "@twurple/eventsub-ngrok": "^8.0.2",
     "express": "^5.2.1"
   },
   "devDependencies": {
