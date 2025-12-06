@@ -202,13 +202,15 @@ app
       console.log('Existing notification types for', videoId, existingTypes);
 
       let shouldNotify = false;
+      const streamEnded = Boolean(video.liveStreamingDetails?.actualEndTime);
+      const hadLiveNotification = existingTypes.has('yt.live');
       if (stage === 'upcoming') {
         shouldNotify = !existingTypes.has('yt.upcoming');
       } else if (stage === 'live') {
-        shouldNotify = !existingTypes.has('yt.live');
+        shouldNotify = !hadLiveNotification;
       } else if (stage === 'none') {
-        // Plain upload only if not previously a live stream
-        shouldNotify = !existingTypes.has('yt.live');
+        // Plain upload only if we have not already handled a live stream/premiere for this video
+        shouldNotify = !(hadLiveNotification || streamEnded || existingTypes.size > 0);
       }
       if (!shouldNotify) {
         console.log('Stage already handled for video', videoId, 'stage', stage);
