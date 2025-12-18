@@ -1,11 +1,15 @@
 {
-  "name": "youtube",
+  "name": "@paintbot/youtube",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "main": "youtube.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier . --write"
   },
   "repository": {
     "type": "git",
@@ -18,8 +22,5 @@
     "@rowanmanning/feed-parser": "^2.1.1",
     "express": "^5.2.1",
     "express-xml-bodyparser": "^0.4.1"
-  },
-  "devDependencies": {
-    "eslint": "^9.12.0"
   }
 }
