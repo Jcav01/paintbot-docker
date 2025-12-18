@@ -42,6 +42,12 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Lock files in sub-projects (workspaces use root package-lock.json)
+discord/package-lock.json
+database/package-lock.json
+twitch/package-lock.json
+youtube/package-lock.json
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 

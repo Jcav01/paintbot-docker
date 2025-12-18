@@ -2,9 +2,10 @@
   "name": "paintbot-monorepo",
   "private": true,
   "workspaces": [
-    "twitch",
     "discord",
-    "database"
+    "database",
+    "twitch",
+    "youtube"
   ],
   "devDependencies": {
     "@eslint/js": "^9.13.0",
