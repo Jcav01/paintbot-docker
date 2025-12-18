@@ -1,6 +1,7 @@
 {
-  "name": "twitch",
+  "name": "@paintbot/twitch",
   "version": "1.0.0",
+  "private": true,
   "description": "Handles subscribing to Twitch EventSub",
   "main": "twitch.js",
   "type": "module",
@@ -21,10 +22,5 @@
     "@twurple/auth": "^8.0.2",
     "@twurple/eventsub-http": "^8.0.2",
     "express": "^5.2.1"
-  },
-  "devDependencies": {
-    "eslint": "^9.39.2",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.7.4"
   }
 }

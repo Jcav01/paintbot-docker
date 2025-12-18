@@ -1,50 +1,20 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    target-branch: "develop"
-    directory: "/discord"
+    target-branch: 'develop'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
+      interval: 'weekly'
+      day: 'monday'
+      time: '10:00'
     groups:
-      minor-and-patch:
+      dev-dependencies:
+        dependency-type: 'development'
         update-types:
-          - "minor"
-          - "patch"
-  - package-ecosystem: npm
-    target-branch: "develop"
-    directory: "/database"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-    groups:
-      minor-and-patch:
+          - 'minor'
+          - 'patch'
+      production-dependencies:
+        dependency-type: 'production'
         update-types:
-          - "minor"
-          - "patch"
-  - package-ecosystem: npm
-    target-branch: "develop"
-    directory: "/twitch"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
-  - package-ecosystem: npm
-    target-branch: "develop"
-    directory: "/youtube"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'

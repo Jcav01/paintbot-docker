@@ -3,10 +3,10 @@ services:
     depends_on:
       - database
     image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
-    build: 
+    build:
       context: twitch
       args:
-          NODE_ENV: ${NODE_ENV}
+        NODE_ENV: ${NODE_ENV}
     environment:
       - NODE_ENV=${NODE_ENV}
     ports:

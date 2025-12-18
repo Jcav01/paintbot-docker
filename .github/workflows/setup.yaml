@@ -24,141 +24,141 @@ jobs:
   setup-and-validate:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-    - name: 'Set up Cloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v2'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
 
-    - name: Validate Google Cloud Configuration
-      run: |-
-        echo "Project ID: $PROJECT_ID"
-        echo "Current project: $(gcloud config get-value project)"
-        echo "Available zones: $(gcloud compute zones list --format='value(name)' | head -5)"
-        
-        # Check if APIs are enabled
-        echo "Checking required APIs..."
-        gcloud services list --enabled --filter="name:container.googleapis.com" --format="value(name)"
-        gcloud services list --enabled --filter="name:containerregistry.googleapis.com" --format="value(name)"
+      - name: Validate Google Cloud Configuration
+        run: |-
+          echo "Project ID: $PROJECT_ID"
+          echo "Current project: $(gcloud config get-value project)"
+          echo "Available zones: $(gcloud compute zones list --format='value(name)' | head -5)"
 
-    - name: Setup GKE Cluster (if requested)
-      if: ${{ github.event.inputs.setup_cluster == 'true' }}
-      run: |-
-        # Check if cluster exists
-        if gcloud container clusters describe $GKE_CLUSTER --zone=$GKE_ZONE > /dev/null 2>&1; then
-          echo "Cluster $GKE_CLUSTER already exists"
-        else
-          echo "Creating GKE cluster $GKE_CLUSTER..."
-          gcloud container clusters create $GKE_CLUSTER \
-            --zone=$GKE_ZONE \
-            --num-nodes=3 \
-            --enable-autorepair \
-            --enable-autoupgrade \
-            --machine-type=e2-medium \
-            --disk-size=20GB \
-            --enable-ip-alias \
-            --no-enable-cloud-logging \
-            --no-enable-cloud-monitoring
-          
-          echo "Cluster created successfully!"
-        fi
+          # Check if APIs are enabled
+          echo "Checking required APIs..."
+          gcloud services list --enabled --filter="name:container.googleapis.com" --format="value(name)"
+          gcloud services list --enabled --filter="name:containerregistry.googleapis.com" --format="value(name)"
 
-    - name: Get GKE credentials
-      run: |-
-        gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
-
-    - name: Validate Kubernetes Manifests
-      run: |-
-        echo "Validating Kubernetes manifests..."
-        
-        # Check if all required manifest files exist
-        required_files=(
-          "k8s/database-deployment.yaml"
-          "k8s/discord-deployment.yaml"
-          "k8s/twitch-deployment.yaml"
-        )
-        
-        for file in "${required_files[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✓ $file exists"
-            # Validate YAML syntax
-            kubectl apply --dry-run=client --validate=true -f "$file" || echo "⚠️  $file has validation issues"
+      - name: Setup GKE Cluster (if requested)
+        if: ${{ github.event.inputs.setup_cluster == 'true' }}
+        run: |-
+          # Check if cluster exists
+          if gcloud container clusters describe $GKE_CLUSTER --zone=$GKE_ZONE > /dev/null 2>&1; then
+            echo "Cluster $GKE_CLUSTER already exists"
           else
-            echo "✗ $file is missing"
+            echo "Creating GKE cluster $GKE_CLUSTER..."
+            gcloud container clusters create $GKE_CLUSTER \
+              --zone=$GKE_ZONE \
+              --num-nodes=3 \
+              --enable-autorepair \
+              --enable-autoupgrade \
+              --machine-type=e2-medium \
+              --disk-size=20GB \
+              --enable-ip-alias \
+              --no-enable-cloud-logging \
+              --no-enable-cloud-monitoring
+            
+            echo "Cluster created successfully!"
           fi
-        done
-        
-        echo ""
-        echo "Note: Kubernetes secrets must be created manually using 'kubectl create secret'"
-        echo "or using the deploy.ps1 script's create-secrets or import-secrets commands."
 
-    - name: Validate Docker Images Access
-      run: |-
-        echo "Configuring Docker for GCR access..."
-        gcloud auth configure-docker $REGISTRY --quiet
-        
-        echo "Checking registry access..."
-        # Try to list repositories
-        gcloud artifacts repositories list --location=northamerica-northeast1 || echo "No repositories found or access issues"
+      - name: Get GKE credentials
+        run: |-
+          gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
-    - name: Test Build Process
-      run: |-
-        echo "Testing Docker builds..."
-        
-        # Test database build
-        if [ -f "database/Dockerfile" ]; then
-          echo "Building database image..."
-          cd database && docker build -t test-database . && cd ..
-          echo "✓ Database build successful"
-        fi
-        
-        # Test discord build  
-        if [ -f "discord/Dockerfile" ]; then
-          echo "Building discord image..."
-          cd discord && docker build -t test-discord . && cd ..
-          echo "✓ Discord build successful"
-        fi
-        
-        # Test twitch build
-        if [ -f "twitch/Dockerfile" ]; then
-          echo "Building twitch image..."
-          cd twitch && docker build -t test-twitch . && cd ..
-          echo "✓ Twitch build successful"
-        fi
+      - name: Validate Kubernetes Manifests
+        run: |-
+          echo "Validating Kubernetes manifests..."
 
-        # Test youtube build
-        if [ -f "youtube/Dockerfile" ]; then
-          echo "Building youtube image..."
-          cd youtube && docker build -t test-youtube . && cd ..
-          echo "✓ YouTube build successful"
-        fi
+          # Check if all required manifest files exist
+          required_files=(
+            "k8s/database-deployment.yaml"
+            "k8s/discord-deployment.yaml"
+            "k8s/twitch-deployment.yaml"
+          )
 
-    - name: Create Namespaces
-      if: ${{ github.event.inputs.validate_only != 'true' }}
-      run: |-
-        echo "Creating namespaces..."
-        kubectl create namespace development --dry-run=client -o yaml | kubectl apply -f -
-        kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
-        echo "✓ Namespaces created"
+          for file in "${required_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+              # Validate YAML syntax
+              kubectl apply --dry-run=client --validate=true -f "$file" || echo "⚠️  $file has validation issues"
+            else
+              echo "✗ $file is missing"
+            fi
+          done
 
-    - name: Summary
-      run: |-
-        echo "=== Setup and Validation Summary ==="
-        echo "Project ID: $PROJECT_ID"
-        echo "Cluster: $GKE_CLUSTER"
-        echo "Zone: $GKE_ZONE"
-        echo "Registry: $REGISTRY"
-        echo ""
-        echo "Cluster status:"
-        kubectl cluster-info
-        echo ""
-        echo "Available nodes:"
-        kubectl get nodes
-        echo ""
-        echo "Setup complete! You can now run the deployment workflows."
+          echo ""
+          echo "Note: Kubernetes secrets must be created manually using 'kubectl create secret'"
+          echo "or using the deploy.ps1 script's create-secrets or import-secrets commands."
+
+      - name: Validate Docker Images Access
+        run: |-
+          echo "Configuring Docker for GCR access..."
+          gcloud auth configure-docker $REGISTRY --quiet
+
+          echo "Checking registry access..."
+          # Try to list repositories
+          gcloud artifacts repositories list --location=northamerica-northeast1 || echo "No repositories found or access issues"
+
+      - name: Test Build Process
+        run: |-
+          echo "Testing Docker builds..."
+
+          # Test database build
+          if [ -f "database/Dockerfile" ]; then
+            echo "Building database image..."
+            cd database && docker build -t test-database . && cd ..
+            echo "✓ Database build successful"
+          fi
+
+          # Test discord build  
+          if [ -f "discord/Dockerfile" ]; then
+            echo "Building discord image..."
+            cd discord && docker build -t test-discord . && cd ..
+            echo "✓ Discord build successful"
+          fi
+
+          # Test twitch build
+          if [ -f "twitch/Dockerfile" ]; then
+            echo "Building twitch image..."
+            cd twitch && docker build -t test-twitch . && cd ..
+            echo "✓ Twitch build successful"
+          fi
+
+          # Test youtube build
+          if [ -f "youtube/Dockerfile" ]; then
+            echo "Building youtube image..."
+            cd youtube && docker build -t test-youtube . && cd ..
+            echo "✓ YouTube build successful"
+          fi
+
+      - name: Create Namespaces
+        if: ${{ github.event.inputs.validate_only != 'true' }}
+        run: |-
+          echo "Creating namespaces..."
+          kubectl create namespace development --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+          echo "✓ Namespaces created"
+
+      - name: Summary
+        run: |-
+          echo "=== Setup and Validation Summary ==="
+          echo "Project ID: $PROJECT_ID"
+          echo "Cluster: $GKE_CLUSTER"
+          echo "Zone: $GKE_ZONE"
+          echo "Registry: $REGISTRY"
+          echo ""
+          echo "Cluster status:"
+          kubectl cluster-info
+          echo ""
+          echo "Available nodes:"
+          kubectl get nodes
+          echo ""
+          echo "Setup complete! You can now run the deployment workflows."
