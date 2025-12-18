@@ -1,5 +1,8 @@
 name: Setup and Validate
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
