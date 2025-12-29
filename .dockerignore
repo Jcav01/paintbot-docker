@@ -77,14 +77,6 @@ typings/
 .git
 .gitignore
 
-# GitHub workflows and configs
-.github/
-
-# Docker-related files
-.dockerignore
-docker-compose*.yaml
-.docker/
-
 # IDE
 .vscode
 .idea
