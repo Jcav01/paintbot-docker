@@ -77,6 +77,15 @@ typings/
 .git
 .gitignore
 
+# GitHub workflows and configs
+.github/
+
+# Docker-related files
+Dockerfile
+.dockerignore
+docker-compose.yaml
+*.dockerfile
+.docker/
 
 # IDE
 .vscode
