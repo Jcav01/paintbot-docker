@@ -9,8 +9,8 @@ COPY youtube/package.json ./youtube/
 
 RUN npm ci --workspace=youtube --omit=dev
 
-# Bundle app source
-COPY youtube/src ./src
+# Bundle app source (copy contents to root)
+COPY youtube/src/ .
 
 EXPOSE 8005
 CMD [ "node", "youtube.js" ]
