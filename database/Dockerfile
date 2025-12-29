@@ -15,8 +15,8 @@ RUN npm ci --workspace=database --omit=dev
 # Remove build dependencies to keep image size small
 RUN apk del python3 make g++
 
-# Bundle app source
-COPY database/src ./src
+# Bundle app source (copy contents to root)
+COPY database/src/ .
 
 EXPOSE 3000
 CMD [ "node", "index.js" ]

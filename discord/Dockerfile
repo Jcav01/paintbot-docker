@@ -9,7 +9,7 @@ COPY discord/package.json ./discord/
 
 RUN npm ci --workspace=discord --omit=dev
 
-# Bundle app source
-COPY discord/src ./src
+# Bundle app source (copy contents to root)
+COPY discord/src/ .
 
 CMD [ "node", "index.js" ]

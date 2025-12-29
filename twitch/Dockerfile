@@ -9,8 +9,8 @@ COPY twitch/package.json ./twitch/
 
 RUN npm ci --workspace=twitch --omit=dev
 
-# Bundle app source
-COPY twitch/src ./src
+# Bundle app source (copy contents to root)
+COPY twitch/src/ .
 
 EXPOSE 3000
 CMD [ "node", "twitch.js" ]
