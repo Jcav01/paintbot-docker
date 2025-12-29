@@ -481,8 +481,6 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
   });
 }
 
-export { waitfordb, addHistory, filterDestinationsByOfflineInterval };
-
 function filterDestinationsByOfflineInterval(destinations, lastOfflineDate, now = Date.now()) {
   if (!lastOfflineDate) return destinations;
 
@@ -491,6 +489,8 @@ function filterDestinationsByOfflineInterval(destinations, lastOfflineDate, now 
     (destination) => lastOfflineTime + destination.minimum_interval * 60000 <= now
   );
 }
+
+export { waitfordb, addHistory, filterDestinationsByOfflineInterval };
 
 function addHistory(sourceId, notificationType, info = null) {
   const history_data = JSON.stringify({
