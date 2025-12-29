@@ -334,7 +334,6 @@ async function handleStreamOffline(broadcasterId) {
   // Get the source to check if they're online
   const sourceRes = await fetch(`http://database:8002/source/${broadcasterId}`);
   const source = await sourceRes.json();
-  console.table(source);
 
   // If stream is already offline, don't do anything to avoid bobble protection extending longer than necessary
   if (!source[0].is_online) {
@@ -363,7 +362,6 @@ async function handleChannelUpdate(event) {
   // Get the last notification for the source
   const sourceRes = await fetch(`http://database:8002/source/${event.broadcasterId}`);
   const sources = await sourceRes.json();
-  console.table(sources);
 
   if (sources[0].is_online) {
     // Get the list of destinations to post to
@@ -371,7 +369,6 @@ async function handleChannelUpdate(event) {
       `http://database:8002/destinations/source/${event.broadcasterId}`
     );
     const destinations = await destinationRes.json();
-    console.table(destinations);
 
     const game = await event.getGame();
     const user = await event.getBroadcaster();
@@ -532,7 +529,6 @@ async function syncEventSubSubscriptions() {
   const sourcesRes = await fetch('http://database:8002/sources/twitch');
   const sources = await sourcesRes.json();
   const sourceIds = sources.map((src) => src.source_id);
-  console.table(sources);
 
   // 2. Get all current EventSub subscriptions from Twitch
   const twitchSubs = await apiClient.eventSub.getSubscriptions();

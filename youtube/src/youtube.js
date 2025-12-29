@@ -368,7 +368,6 @@ async function syncEventSubSubscriptions() {
   const sourcesRes = await fetch('http://database:8002/sources/youtube');
   const sources = await sourcesRes.json();
   const sourceIds = sources.map((src) => src.source_id);
-  console.table(sources);
 
   // 2. Setup WebSub notifications for each source
   sourceIds.forEach((source_id) => {
