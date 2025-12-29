@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import * as http from 'http';
 
 // Mock Twurple and database before importing handlers
 const mockGetUserByName = vi.fn();

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import * as http from 'http';
 
 // Mock YouTube API
 const mockChannelsList = vi.fn();

@@ -18,6 +18,12 @@ npm test --workspace=youtube
 
 # Watch mode (auto-rerun on file changes)
 npm run test:watch --workspace=database
+
+# Generate coverage reports
+npm run test:coverage
+
+# Coverage for a specific service
+npm run test:coverage --workspace=database
 ```
 
 ## Test Coverage
@@ -96,12 +102,39 @@ All services set `NODE_ENV=test` guards:
 - **YouTube**: `vi.mock('@googleapis/youtube')`
 - **HTTP**: `vi.mock('http')` for inter-service calls to database
 
+## Coverage Reporting
+
+Vitest is configured with `@vitest/coverage-v8` to track test coverage across all services.
+
+### Viewing Coverage
+
+- **Terminal output**: `npm run test:coverage` prints coverage summary to console
+- **HTML reports**: Each service generates `coverage/index.html` (open in browser for interactive reports)
+- **CI artifacts**: GitHub Actions uploads coverage reports; download from PR artifacts
+
+### Coverage Files
+
+Each service generates coverage in its `coverage/` directory:
+
+- `index.html` – Interactive coverage report
+- `coverage.json` – Machine-readable metrics
+- Console output shows line, branch, function, and statement coverage percentages
+
+### CI Integration
+
+The test workflow automatically:
+
+1. Runs tests with `npm test`
+2. Generates coverage with `npm run test:coverage`
+3. Uploads coverage artifacts to GitHub (available for 30 days)
+4. Adds summary to PR showing pass/fail status
+
 ## Next Steps
 
-1. **Refactor for testability**: Extract event handlers (`handleStreamOnline`, `handleChannelUpdate`, etc.) into separate modules for isolated unit testing
-2. **Integration tests**: Spin up real Postgres via Docker Compose for full database integration tests
-3. **E2E tests**: Test complete notification flow (Twitch event → DB → Discord webhook) with all services running
-4. **Coverage reporting**: Add `--coverage` flag and track metrics in CI (`vitest --coverage`)
+1. **Coverage thresholds**: Set minimum coverage requirements (e.g., `lines: 70%`) to block PRs below target
+2. **Refactor for testability**: Extract event handlers (`handleStreamOnline`, `handleChannelUpdate`, etc.) into separate modules for isolated unit testing
+3. **Integration tests**: Spin up real Postgres via Docker Compose for full database integration tests
+4. **E2E tests**: Test complete notification flow (Twitch event → DB → Discord webhook) with all services running
 5. **Contract testing**: Validate inter-service payload shapes with JSON schemas or Pact
 6. **Snapshot testing**: Use Vitest snapshots for Discord embed structures
 7. **Performance tests**: Benchmark database queries and HTTP endpoint latency
