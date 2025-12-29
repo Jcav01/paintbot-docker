@@ -4,14 +4,13 @@ FROM node:24-alpine
 WORKDIR /usr/src/app
 
 # Install app dependencies from monorepo
-COPY package-lock.json ./
-COPY package.json ./
+COPY package-lock.json package.json ./
 COPY twitch/package.json ./twitch/
 
 RUN npm ci --workspace=twitch --omit=dev
 
 # Bundle app source
-COPY ./src .
+COPY twitch/src ./src
 
 EXPOSE 3000
 CMD [ "node", "twitch.js" ]

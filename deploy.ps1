@@ -75,9 +75,7 @@ function Build-Images {
     foreach ($service in $services) {
         if ((Test-Path $service) -and (Test-Path "$service\Dockerfile")) {
             Write-Host "Building $service..." -ForegroundColor Cyan
-            Set-Location $service
-            docker build -t "$Registry/$ProjectId/paintbot/$service`:latest" .
-            Set-Location ..
+            docker build -t "$Registry/$ProjectId/paintbot/$service`:latest" -f "$service/Dockerfile" .
         } else {
             Write-Host "Skipping $service (no Dockerfile found)" -ForegroundColor Yellow
         }

@@ -7,8 +7,7 @@ WORKDIR /usr/src/app
 RUN apk add --no-cache python3 make g++
 
 # Install app dependencies from monorepo
-COPY package-lock.json ./
-COPY package.json ./
+COPY package-lock.json package.json ./
 COPY database/package.json ./database/
 
 RUN npm ci --workspace=database --omit=dev
@@ -17,7 +16,7 @@ RUN npm ci --workspace=database --omit=dev
 RUN apk del python3 make g++
 
 # Bundle app source
-COPY ./src .
+COPY database/src ./src
 
 EXPOSE 3000
 CMD [ "node", "index.js" ]
