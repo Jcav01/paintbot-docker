@@ -4,7 +4,7 @@ import * as http from 'http';
 import * as https from 'https';
 import express from 'express';
 import xmlbodyparser from 'express-xml-bodyparser';
-const app = express();
+export const app = express();
 
 // Environment-specific hostname for callbacks/referer
 const HOSTNAME = process.env.YOUTUBE_PUBLIC_HOSTNAME || 'dev.paintbot.net';
@@ -13,13 +13,24 @@ const lease_seconds = 864000; // 10 days
 
 // In Kubernetes, secrets are mounted as individual files in a directory
 const secretsPath = '/etc/secrets';
-const youtube = new youtube_v3.Youtube({
-  // TODO: Switch to service account to remove need for referer
-  auth: fs.readFileSync(`${secretsPath}/youtube-api-key`, 'utf8').trim(),
-  headers: {
-    referer: `https://${HOSTNAME}`,
-  },
-});
+let youtube;
+if (process.env.NODE_ENV === 'test') {
+  youtube = new youtube_v3.Youtube({
+    auth: 'test-api-key',
+    headers: {
+      referer: 'https://dev.paintbot.net',
+    },
+  });
+  console.log('Using test YouTube API key');
+} else {
+  youtube = new youtube_v3.Youtube({
+    // TODO: Switch to service account to remove need for referer
+    auth: fs.readFileSync(`${secretsPath}/youtube-api-key`, 'utf8').trim(),
+    headers: {
+      referer: `https://${HOSTNAME}`,
+    },
+  });
+}
 
 app.post('/add', express.json(), async (req, res) => {
   console.log('Received request to add Youtube source:', req.body);
@@ -257,18 +268,21 @@ app
   });
 
 // Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
-app.listen(8005, () => {
-  console.log('YouTube is listening on port 8005');
-  (async () => {
-    try {
-      await waitfordb('http://database:8002');
-      console.log('Database is up');
-      await syncEventSubSubscriptions();
-    } catch (e) {
-      console.error('Post-listen startup task failed:', e.message);
-    }
-  })();
-});
+const port = process.env.PORT || 8005;
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`YouTube is listening on port ${port}`);
+    (async () => {
+      try {
+        await waitfordb('http://database:8002');
+        console.log('Database is up');
+        await syncEventSubSubscriptions();
+      } catch (e) {
+        console.error('Post-listen startup task failed:', e.message);
+      }
+    })();
+  });
+}
 
 async function setupYouTubeNotification(source_id) {
   // Build WebSub form data (must be x-www-form-urlencoded)
@@ -346,6 +360,8 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
     reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
 }
+
+export { waitfordb };
 
 async function syncEventSubSubscriptions() {
   // 1. Get all sources from database

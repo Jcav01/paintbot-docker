@@ -8,17 +8,24 @@ app.use(express.json());
 
 // Load the secrets from Kubernetes mounted secrets
 let secrets;
-try {
-  // In Kubernetes, secrets are mounted as individual files in a directory
-  const secretsPath = '/etc/secrets';
+if (process.env.NODE_ENV === 'test') {
   secrets = {
-    token: fs.readFileSync(`${secretsPath}/bot-token`, 'utf8').trim(),
+    token: 'test-token',
   };
+  console.log('Using test secrets');
+} else {
+  try {
+    // In Kubernetes, secrets are mounted as individual files in a directory
+    const secretsPath = '/etc/secrets';
+    secrets = {
+      token: fs.readFileSync(`${secretsPath}/bot-token`, 'utf8').trim(),
+    };
 
-  console.log('Discord secrets loaded successfully from Kubernetes');
-} catch (err) {
-  console.error('Failed to load Discord secrets:', err.message);
-  process.exit(1);
+    console.log('Discord secrets loaded successfully from Kubernetes');
+  } catch (err) {
+    console.error('Failed to load Discord secrets:', err.message);
+    process.exit(1);
+  }
 }
 
 // Create a new client instance
@@ -27,23 +34,27 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 // Extends client to add collection of commands
 client.commands = new Collection();
 
-const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
+if (process.env.NODE_ENV !== 'test') {
+  const foldersPath = path.join(__dirname, 'commands');
+  const commandFolders = fs.readdirSync(foldersPath);
 
-// Loop through each folder in the commands directory
-for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
-  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+  // Loop through each folder in the commands directory
+  for (const folder of commandFolders) {
+    const commandsPath = path.join(foldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 
-  // Add each file as a command
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    // Add each command file to the command collection
-    if ('data' in command && 'execute' in command) {
-      client.commands.set(command.data.name, command);
-    } else {
-      console.log(`The command at ${filePath} is missing a required "data" or "execute" property.`);
+    // Add each file as a command
+    for (const file of commandFiles) {
+      const filePath = path.join(commandsPath, file);
+      const command = require(filePath);
+      // Add each command file to the command collection
+      if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+      } else {
+        console.log(
+          `The command at ${filePath} is missing a required "data" or "execute" property.`
+        );
+      }
     }
   }
 }
@@ -101,7 +112,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // Log in to Discord with your client's token
-client.login(secrets.token);
+if (process.env.NODE_ENV !== 'test') {
+  client.login(secrets.token);
+}
 
 // Handle requests from other services to post notifications
 app.post('/embed/send', async (req, res) => {
@@ -178,9 +191,12 @@ app.post('/embed/edit', (req, res) => {
   res.send();
 });
 
-app.listen(8001, () => {
-  console.log('Discord is listening on port 8001');
-});
+const port = process.env.PORT || 8001;
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Discord is listening on port ${port}`);
+  });
+}
 
 async function checkServerWhitelist(serverId) {
   try {
@@ -227,3 +243,5 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
     reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
 }
+
+module.exports = { app, waitfordb };

@@ -4,7 +4,7 @@ import { EventSubMiddleware } from '@twurple/eventsub-http';
 import * as fs from 'fs';
 import * as http from 'http';
 import express from 'express';
-const app = express();
+export const app = express();
 
 app.post('/add', express.json(), async (req, res) => {
   console.log('Received request to add Twitch source:', req.body);
@@ -101,19 +101,28 @@ app.get('/', async (req, res) => {
 
 // Load the secrets from Kubernetes mounted secrets
 let secrets;
-try {
-  // In Kubernetes, secrets are mounted as individual files in a directory
-  const secretsPath = '/etc/secrets';
+if (process.env.NODE_ENV === 'test') {
   secrets = {
-    clientId: fs.readFileSync(`${secretsPath}/client-id`, 'utf8').trim(),
-    clientSecret: fs.readFileSync(`${secretsPath}/client-secret`, 'utf8').trim(),
-    eventSubSecret: fs.readFileSync(`${secretsPath}/eventsub-secret`, 'utf8').trim(),
+    clientId: 'test-client-id',
+    clientSecret: 'test-client-secret',
+    eventSubSecret: 'test-eventsub-secret',
   };
+  console.log('Using test secrets');
+} else {
+  try {
+    // In Kubernetes, secrets are mounted as individual files in a directory
+    const secretsPath = '/etc/secrets';
+    secrets = {
+      clientId: fs.readFileSync(`${secretsPath}/client-id`, 'utf8').trim(),
+      clientSecret: fs.readFileSync(`${secretsPath}/client-secret`, 'utf8').trim(),
+      eventSubSecret: fs.readFileSync(`${secretsPath}/eventsub-secret`, 'utf8').trim(),
+    };
 
-  console.log('Secrets loaded successfully from Kubernetes');
-} catch (err) {
-  console.error('Failed to load secrets:', err.message);
-  process.exit(1);
+    console.log('Secrets loaded successfully from Kubernetes');
+  } catch (err) {
+    console.error('Failed to load secrets:', err.message);
+    process.exit(1);
+  }
 }
 
 const authProvider = new AppTokenAuthProvider(secrets.clientId, secrets.clientSecret);
@@ -130,19 +139,22 @@ twitchListener.apply(app);
 const subs = [];
 
 // Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
-app.listen(8004, () => {
-  console.log('Twitch is listening on port 8004');
-  (async () => {
-    try {
-      await waitfordb('http://database:8002');
-      console.log('Database is up');
-      await twitchListener.markAsReady();
-      await syncEventSubSubscriptions();
-    } catch (e) {
-      console.error('Post-listen startup task failed:', e.message);
-    }
-  })();
-});
+const port = process.env.PORT || 8004;
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Twitch is listening on port ${port}`);
+    (async () => {
+      try {
+        await waitfordb('http://database:8002');
+        console.log('Database is up');
+        await twitchListener.markAsReady();
+        await syncEventSubSubscriptions();
+      } catch (e) {
+        console.error('Post-listen startup task failed:', e.message);
+      }
+    })();
+  });
+}
 
 async function handleStreamOnline(event) {
   console.log(`Stream online: ${event.broadcasterId}`);
@@ -481,6 +493,8 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
     reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
 }
+
+export { waitfordb, addHistory };
 
 function addHistory(sourceId, notificationType, info = null) {
   const history_data = JSON.stringify({

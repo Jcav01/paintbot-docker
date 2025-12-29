@@ -1,10 +1,10 @@
 import * as db from './db/index.js';
 import express from 'express';
-const app = express();
+export const app = express();
 
 // Simple async error wrapper to avoid repetitive try/catch blocks.
 // Ensures unhandled errors return a 500 and are logged consistently.
-const asyncHandler = (fn) => (req, res, next) =>
+export const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch((err) => {
     console.error('Unhandled route error:', err);
     if (!res.headersSent) {
@@ -124,6 +124,18 @@ app.get(
       [req.query.search]
     );
     res.json(result.rows);
+  })
+);
+
+app.get(
+  '/notifications/history/types/:videoId',
+  asyncHandler(async (req, res) => {
+    console.log('Received request to get notification types for video:', req.params.videoId);
+    const result = await db.query(
+      "SELECT notification_type FROM past_notifications WHERE notification_info->>'id' = $1",
+      [req.params.videoId]
+    );
+    res.json(result.rows.map((r) => r.notification_type));
   })
 );
 
@@ -289,18 +301,6 @@ app.delete(
   })
 );
 
-app.get(
-  '/notifications/history/types/:videoId',
-  asyncHandler(async (req, res) => {
-    console.log('Received request to get notification types for video:', req.params.videoId);
-    const result = await db.query(
-      "SELECT notification_type FROM past_notifications WHERE notification_info->>'id' = $1",
-      [req.params.videoId]
-    );
-    res.json(result.rows.map((r) => r.notification_type));
-  })
-);
-
 app.post(
   '/notifications/history/claim',
   asyncHandler(async (req, res) => {
@@ -333,6 +333,11 @@ app.get(
   })
 );
 
-app.listen(8002, () => {
-  console.log('Database is listening on port 8002');
-});
+const port = process.env.PORT || 8002;
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Database is listening on port ${port}`);
+  });
+}
+
+export default app;

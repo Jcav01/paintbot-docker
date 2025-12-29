@@ -27,6 +27,37 @@
 - Secrets: Populate service `secrets/` files and mount via `docker-compose.override.yaml` (see README for paths). Start with `docker compose up --build`.
 - Workspaces: Install at root (`npm install`), then lint per service (`npm run lint --workspace=<service>`).
 - Slash commands: Fill `deploy-commands/config.json` and run `node deploy-commands/deploy-commands.js`.
+- Testing: Run `npm test` from root (all services) or `npm test --workspace=<service>` for individual services. Use `npm run test:watch` for development.
+
+## Testing Infrastructure
+
+- Framework: Vitest 1.6.1 (native ESM support, Jest-compatible API) + Supertest 7.1.1 (HTTP assertions).
+- Location: Each service has `tests/` directory; 35+ tests across 6 files (database: 7, discord: 5, twitch: 8, youtube: 15).
+- Environment: Tests run with `NODE_ENV=test`; services export apps and skip port binding/client initialization in test mode.
+- Module systems: Database/Twitch/YouTube use ESM (`"type": "module"`); Discord uses CommonJS.
+
+### Test Patterns
+
+- **Mocking strategy**: Use `vi.mock()` with factory functions before imports. Mock external APIs (discord.js, @twurple/api, @googleapis/youtube, pg, http) to avoid real network calls.
+- **Database tests** (`database/tests/index.test.js`): Mock `pg.Pool`, test asyncHandler error handling, race-safe `/notifications/history/claim`, destination updates, route responses. Example: `vi.mock('pg', () => ({ Pool: vi.fn(() => ({ query: mockQuery, connect: mockConnect })) }))`.
+- **Discord tests** (`discord/tests/index.test.js`): Mock `discord.js` Client/EmbedBuilder, test `waitfordb()` exponential backoff, `/embed/send` and `/message/send` validation. Skip slash command loading in tests.
+- **Twitch tests** (`twitch/tests/twitch.test.js`, `twitch/tests/handlers.test.js`): Mock Twurple ApiClient factory, test POST `/add` (creates destination + EventSub), DELETE `/remove`, handler module structure.
+- **YouTube tests** (`youtube/tests/youtube.test.js`, `youtube/tests/notifications.test.js`): Mock googleapis youtube.channels.list, test WebSub challenge/notifications, POST `/add`, DELETE `/remove`, video age filtering (<24h), notification stage transitions.
+
+### Test Conventions
+
+- **Route ordering**: Express matches routes sequentially; define specific literal paths (e.g., `/notifications/history/types/:videoId`) before parameterized paths (e.g., `/notifications/history/:source`).
+- **Exported symbols**: Services export `app`, `waitfordb`, and key functions for testing. Database exports `asyncHandler`; Twitch exports `addHistory`; YouTube exports notification helpers.
+- **Test secrets**: Hard-coded test credentials (`CLIENT_ID=test-client-id`) in `NODE_ENV=test` blocks; real secrets loaded from files otherwise.
+- **HTTP mocking**: Mock `http.request` with factory returning mock `IncomingMessage` and writable request objects; call `res.emit('data')` and `res.emit('end')` to simulate responses.
+- **Assertion style**: Use `expect(response.status).toBe(200)` (Vitest), `request(app).post('/path')` (Supertest).
+
+### Running Tests
+
+- All services: `npm test` (runs workspace tests, exits on first failure).
+- Single service: `npm test --workspace=database` or `cd database && npm test`.
+- Watch mode: `npm run test:watch` or per-service.
+- CI: No coverage reporting yet; see TESTING.md "Next Steps" for integration/E2E/performance test roadmap.
 
 ## Kubernetes & CI
 
