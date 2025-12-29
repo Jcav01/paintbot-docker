@@ -5,7 +5,7 @@
 - Services: Node.js `discord/`, `twitch/`, `youtube/`, and `database/` coordinate live notifications into Discord; PostgreSQL backs state via REST.
 - Networking: Containers use internal DNS (`database`, `discord`, `twitch`, `youtube`) in Compose and Kubernetes.
 - Secrets: Mounted as files under `/etc/secrets` (and `/etc/service-account/key.json` for DB). Do not read from env vars.
-- Runtime: Node 20+ with global `fetch`; inter-service calls are raw `http` with JSON and explicit `Content-Length`.
+- Runtime: Node 24+ with global `fetch`; inter-service calls are raw `http` with JSON and explicit `Content-Length`.
 
 ## Service Patterns
 
