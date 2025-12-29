@@ -172,7 +172,7 @@ async function handleStreamOnline(event) {
   const destinationRes = await fetch(
     `http://database:8002/destinations/source/${event.broadcasterId}`
   );
-  const destinations = await destinationRes.json();
+  let destinations = await destinationRes.json();
 
   // Get the last offline notification for the source
   const lastOfflineRes = await fetch(
@@ -180,19 +180,9 @@ async function handleStreamOnline(event) {
   );
   const lastOffline = await lastOfflineRes.json();
 
-  // If there was a previous offline notification, check if it was within the minimum interval of any destination
+  // If there was a previous offline notification, drop destinations still inside their minimum interval window
   if (lastOffline[0]) {
-    const now = new Date().getTime();
-    const lastOfflineTime = new Date(lastOffline[0].received_date).getTime();
-    destinations.forEach((destination) => {
-      // If the last offline notification was within the minumum interval of a destination, remove the destination from the list
-      if (lastOfflineTime + destination.minimum_interval * 60000 > now) {
-        const index = destinations.indexOf(destination);
-        if (index > -1) {
-          destinations.splice(index, 1);
-        }
-      }
-    });
+    destinations = filterDestinationsByOfflineInterval(destinations, lastOffline[0].received_date);
   }
 
   // Get the last update notification for the source
@@ -494,7 +484,16 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
   });
 }
 
-export { waitfordb, addHistory };
+export { waitfordb, addHistory, filterDestinationsByOfflineInterval };
+
+function filterDestinationsByOfflineInterval(destinations, lastOfflineDate, now = Date.now()) {
+  if (!lastOfflineDate) return destinations;
+
+  const lastOfflineTime = new Date(lastOfflineDate).getTime();
+  return destinations.filter(
+    (destination) => lastOfflineTime + destination.minimum_interval * 60000 <= now
+  );
+}
 
 function addHistory(sourceId, notificationType, info = null) {
   const history_data = JSON.stringify({

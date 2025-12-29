@@ -95,4 +95,22 @@ describe('Twitch event handlers', () => {
     expect(mockChannelUpdateEvent.streamTitle).toBe('New Title');
     expect(mockChannelUpdateEvent.categoryName).toBe('Test Game');
   });
+
+  it('filters out destinations still inside the minimum interval window', async () => {
+    const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+    const now = Date.now();
+    const destinations = [
+      { channel_id: 'dest-1', minimum_interval: 15 },
+      { channel_id: 'dest-2', minimum_interval: 15 },
+    ];
+
+    const filtered = filterDestinationsByOfflineInterval(
+      destinations,
+      new Date(now - 5 * 60000).toISOString(),
+      now
+    );
+
+    expect(filtered).toEqual([]);
+  });
 });
