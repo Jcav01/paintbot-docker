@@ -117,28 +117,28 @@ jobs:
           # Test database build
           if [ -f "database/Dockerfile" ]; then
             echo "Building database image..."
-            cd database && docker build -t test-database . && cd ..
+            docker build -t test-database -f database/Dockerfile .
             echo "✓ Database build successful"
           fi
 
           # Test discord build  
           if [ -f "discord/Dockerfile" ]; then
             echo "Building discord image..."
-            cd discord && docker build -t test-discord . && cd ..
+            docker build -t test-discord -f discord/Dockerfile .
             echo "✓ Discord build successful"
           fi
 
           # Test twitch build
           if [ -f "twitch/Dockerfile" ]; then
             echo "Building twitch image..."
-            cd twitch && docker build -t test-twitch . && cd ..
+            docker build -t test-twitch -f twitch/Dockerfile .
             echo "✓ Twitch build successful"
           fi
 
           # Test youtube build
           if [ -f "youtube/Dockerfile" ]; then
             echo "Building youtube image..."
-            cd youtube && docker build -t test-youtube . && cd ..
+            docker build -t test-youtube -f youtube/Dockerfile .
             echo "✓ YouTube build successful"
           fi
 
