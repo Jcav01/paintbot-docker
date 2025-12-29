@@ -77,12 +77,6 @@ typings/
 .git
 .gitignore
 
-# Docker
-Dockerfile*
-docker-compose*
-
-# GitHub
-.github
 
 # IDE
 .vscode
