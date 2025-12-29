@@ -7,25 +7,33 @@ const mockGetUserByName = vi.fn();
 const mockGetSubscriptions = vi.fn();
 
 vi.mock('@twurple/auth');
-vi.mock('@twurple/api', () => ({
-  ApiClient: vi.fn(() => ({
-    users: {
-      getUserByName: mockGetUserByName,
-    },
-    eventSub: {
-      getSubscriptions: mockGetSubscriptions,
-    },
-  })),
-}));
-vi.mock('@twurple/eventsub-http', () => ({
-  EventSubMiddleware: vi.fn(() => ({
-    apply: vi.fn(),
-    markAsReady: vi.fn(),
-    onStreamOnline: vi.fn(),
-    onStreamOffline: vi.fn(),
-    onChannelUpdate: vi.fn(),
-  })),
-}));
+vi.mock('@twurple/api', () => {
+  class MockApiClient {
+    constructor() {
+      this.users = {
+        getUserByName: mockGetUserByName,
+      };
+      this.eventSub = {
+        getSubscriptions: mockGetSubscriptions,
+      };
+    }
+  }
+  return {
+    ApiClient: MockApiClient,
+  };
+});
+vi.mock('@twurple/eventsub-http', () => {
+  class MockEventSubMiddleware {
+    apply() {}
+    markAsReady() {}
+    onStreamOnline() {}
+    onStreamOffline() {}
+    onChannelUpdate() {}
+  }
+  return {
+    EventSubMiddleware: MockEventSubMiddleware,
+  };
+});
 
 // Mock http module for database calls
 vi.mock('http', async (importOriginal) => {
