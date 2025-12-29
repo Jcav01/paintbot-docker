@@ -49,17 +49,6 @@ module.exports = [
       sourceType: 'module',
     },
   },
-  // Service runtime code defaults to ESM
-  {
-    files: ['database/**/*.js', 'twitch/**/*.js', 'youtube/**/*.js'],
-    languageOptions: {
-      sourceType: 'module',
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
-    },
-  },
   // Allow console in scripts & operational code
   {
     files: ['**/scripts/**/*.js'],
