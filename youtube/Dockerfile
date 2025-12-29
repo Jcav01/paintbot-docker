@@ -1,4 +1,4 @@
-FROM node:24
+FROM node:24-alpine
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -8,9 +8,7 @@ WORKDIR /usr/src/app
 # where available (npm@5+)
 COPY package*.json ./
 
-RUN npm install
-# If you are building your code for production
-# RUN npm ci --omit=dev
+RUN npm ci --omit=dev
 
 # Bundle app source
 COPY ./src .
