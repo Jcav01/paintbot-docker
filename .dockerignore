@@ -81,10 +81,9 @@ typings/
 .github/
 
 # Docker-related files
-Dockerfile
 .dockerignore
 docker-compose.yaml
-*.dockerfile
+docker-compose*.yaml
 .docker/
 
 # IDE
