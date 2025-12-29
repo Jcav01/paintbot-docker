@@ -6,12 +6,15 @@ const globals = require('globals');
 
 module.exports = [
   js.configs.recommended,
-  // Global settings for all JS files
+  // Global settings for all JS files (default to ESM)
   {
-    files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
       globals: {
         ...globals.node, // Node.js globals: console, process, Buffer, setTimeout, etc.
         fetch: 'readonly', // Node 18+ global fetch

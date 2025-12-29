@@ -172,7 +172,7 @@ async function handleStreamOnline(event) {
   const destinationRes = await fetch(
     `http://database:8002/destinations/source/${event.broadcasterId}`
   );
-  const destinations = await destinationRes.json();
+  let destinations = await destinationRes.json();
 
   // Get the last offline notification for the source
   const lastOfflineRes = await fetch(
@@ -180,19 +180,9 @@ async function handleStreamOnline(event) {
   );
   const lastOffline = await lastOfflineRes.json();
 
-  // If there was a previous offline notification, check if it was within the minimum interval of any destination
+  // If there was a previous offline notification, drop destinations still inside their minimum interval window
   if (lastOffline[0]) {
-    const now = new Date().getTime();
-    const lastOfflineTime = new Date(lastOffline[0].received_date).getTime();
-    destinations.forEach((destination) => {
-      // If the last offline notification was within the minumum interval of a destination, remove the destination from the list
-      if (lastOfflineTime + destination.minimum_interval * 60000 > now) {
-        const index = destinations.indexOf(destination);
-        if (index > -1) {
-          destinations.splice(index, 1);
-        }
-      }
-    });
+    destinations = filterDestinationsByOfflineInterval(destinations, lastOffline[0].received_date);
   }
 
   // Get the last update notification for the source
@@ -344,7 +334,6 @@ async function handleStreamOffline(broadcasterId) {
   // Get the source to check if they're online
   const sourceRes = await fetch(`http://database:8002/source/${broadcasterId}`);
   const source = await sourceRes.json();
-  console.table(source);
 
   // If stream is already offline, don't do anything to avoid bobble protection extending longer than necessary
   if (!source[0].is_online) {
@@ -373,7 +362,6 @@ async function handleChannelUpdate(event) {
   // Get the last notification for the source
   const sourceRes = await fetch(`http://database:8002/source/${event.broadcasterId}`);
   const sources = await sourceRes.json();
-  console.table(sources);
 
   if (sources[0].is_online) {
     // Get the list of destinations to post to
@@ -381,7 +369,6 @@ async function handleChannelUpdate(event) {
       `http://database:8002/destinations/source/${event.broadcasterId}`
     );
     const destinations = await destinationRes.json();
-    console.table(destinations);
 
     const game = await event.getGame();
     const user = await event.getBroadcaster();
@@ -494,7 +481,16 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
   });
 }
 
-export { waitfordb, addHistory };
+function filterDestinationsByOfflineInterval(destinations, lastOfflineDate, now = Date.now()) {
+  if (!lastOfflineDate) return destinations;
+
+  const lastOfflineTime = new Date(lastOfflineDate).getTime();
+  return destinations.filter(
+    (destination) => lastOfflineTime + destination.minimum_interval * 60000 <= now
+  );
+}
+
+export { waitfordb, addHistory, filterDestinationsByOfflineInterval };
 
 function addHistory(sourceId, notificationType, info = null) {
   const history_data = JSON.stringify({
@@ -533,7 +529,6 @@ async function syncEventSubSubscriptions() {
   const sourcesRes = await fetch('http://database:8002/sources/twitch');
   const sources = await sourcesRes.json();
   const sourceIds = sources.map((src) => src.source_id);
-  console.table(sources);
 
   // 2. Get all current EventSub subscriptions from Twitch
   const twitchSubs = await apiClient.eventSub.getSubscriptions();
