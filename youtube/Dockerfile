@@ -3,15 +3,14 @@ FROM node:24-alpine
 # Create app directory
 WORKDIR /usr/src/app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
+# Install app dependencies from monorepo
+COPY package-lock.json package.json ./
+COPY youtube/package.json ./youtube/
 
-RUN npm ci --omit=dev
+RUN npm ci --workspace=youtube --omit=dev
 
 # Bundle app source
-COPY ./src .
+COPY youtube/src ./src
 
 EXPOSE 8005
 CMD [ "node", "youtube.js" ]

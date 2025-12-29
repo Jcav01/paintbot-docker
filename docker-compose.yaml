@@ -4,7 +4,8 @@ services:
       - database
     image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/twitch:latest
     build:
-      context: twitch
+      context: .
+      dockerfile: twitch/Dockerfile
       args:
         NODE_ENV: ${NODE_ENV}
     environment:
@@ -20,7 +21,9 @@ services:
       - paintbot
   discord:
     image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/discord:latest
-    build: discord
+    build:
+      context: .
+      dockerfile: discord/Dockerfile
     ports:
       - 8001
     secrets:
@@ -29,7 +32,9 @@ services:
       - paintbot
   database:
     image: northamerica-northeast1-docker.pkg.dev/paintbot/paintbot/database:latest
-    build: database
+    build:
+      context: .
+      dockerfile: database/Dockerfile
     secrets:
       - paintbot-3e5d5b0e2fe3
       - database-secrets
