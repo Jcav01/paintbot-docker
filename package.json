@@ -8,13 +8,19 @@
     "youtube"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.13.0",
-    "eslint": "^9.36.0",
+    "@eslint/js": "^9.39.2",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.4.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.1",
+    "vitest": "^1.6.0"
   },
   "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier . --write"

@@ -6,7 +6,9 @@
   "main": "database.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier . --write"
@@ -18,7 +20,7 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/cloud-sql-connector": "^1.8.1",
+    "@google-cloud/cloud-sql-connector": "^1.8.5",
     "express": "^5.2.0",
     "pg": "^8.16.3"
   }

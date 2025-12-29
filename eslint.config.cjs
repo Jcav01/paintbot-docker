@@ -25,11 +25,25 @@ module.exports = [
       'no-constant-condition': ['warn', { checkLoops: false }],
     },
   },
-  // Discord service uses CommonJS modules
+  // Discord service uses CommonJS modules (except tests)
   {
-    files: ['discord/**/*.js'],
+    files: ['discord/**/*.js', '!discord/tests/**'],
     languageOptions: {
       sourceType: 'commonjs',
+    },
+  },
+  // Discord tests use ES modules
+  {
+    files: ['discord/tests/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  // Database, Twitch, YouTube tests use ES modules (explicit for clarity)
+  {
+    files: ['database/tests/**/*.js', 'twitch/tests/**/*.js', 'youtube/tests/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
     },
   },
   // Allow console in scripts & operational code
