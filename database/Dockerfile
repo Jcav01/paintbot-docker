@@ -6,12 +6,12 @@ WORKDIR /usr/src/app
 # Install build dependencies for native modules (pg)
 RUN apk add --no-cache python3 make g++
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
+# Install app dependencies from monorepo
+COPY package-lock.json ./
+COPY package.json ./
+COPY database/package.json ./database/
 
-RUN npm ci --omit=dev
+RUN npm ci --workspace=database --omit=dev
 
 # Remove build dependencies to keep image size small
 RUN apk del python3 make g++
