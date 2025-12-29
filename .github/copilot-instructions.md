@@ -1,45 +1,96 @@
 # Copilot Instructions
 
-## Orientation
+## Big Picture
 
-- Paintbot routes Twitch and YouTube live events into Discord via four Node.js services plus a PostgreSQL API.
-- Containers talk over internal DNS names (`database`, `discord`, `twitch`, `youtube`) whether in Docker Compose or Kubernetes.
-- Secrets are mounted as files under `/etc/secrets` (and `/etc/service-account` for DB) rather than environment variables.
-- Node 20+ runtime is assumed; global `fetch` is used heavily for inter-service calls.
+- Services: Node.js `discord/`, `twitch/`, `youtube/`, and `database/` coordinate live notifications into Discord; PostgreSQL backs state via REST.
+- Networking: Containers use internal DNS (`database`, `discord`, `twitch`, `youtube`) in Compose and Kubernetes.
+- Secrets: Mounted as files under `/etc/secrets` (and `/etc/service-account/key.json` for DB). Do not read from env vars.
+- Runtime: Node 20+ with global `fetch`; inter-service calls are raw `http` with JSON and explicit `Content-Length`.
 
-## Service Notes
+## Service Patterns
 
-- `database/` exposes the REST API backing everything else; it uses the Cloud SQL Connector (`@google-cloud/cloud-sql-connector`) and sets `search_path=paintbot`.
-- `database/src/index.js` wraps handlers with `asyncHandler`; match that pattern when adding routes and keep SQL in `database/src/db/index.js`.
-- `discord/src/index.js` bootstraps slash commands from `commands/`, enforces guild whitelisting via `GET /servers/:id`, and exposes `/embed/send` & `/message/send` for other services.
-- `twitch/src/twitch.js` relies on Twurple (`@twurple/*`) to manage EventSub subscriptions, mirrors DB state through `syncEventSubSubscriptions()`, and updates Discord plus DB histories when events fire.
-- `youtube/src/youtube.js` consumes WebSub callbacks, claims notification stages via `/notifications/history/claim`, and re-subscribes every 90% of `lease_seconds`.
+- `database/src/index.js`: Route handlers wrapped in `asyncHandler(...)`; keep SQL in `database/src/db/index.js`. Examples: `/destinations/:destination/:source` updates `last_message_id`, `/notifications/history/claim` dedupes by `notification_info->>'id'`.
+- `discord/src/index.js`: Loads slash commands from `src/commands/**`, enforces guild whitelist via `GET /servers/:id` (auto-leaves on `{ whitelisted: false }`), exposes `/embed/send`, `/message/send`.
+- `twitch/src/twitch.js`: Uses Twurple (`@twurple/*`), binds EventSub via `EventSubMiddleware`, mirrors DB with `syncEventSubSubscriptions()`, and on events calls Discord then DB (`/destinations/...`, `/notifications/history`).
+- `youtube/src/youtube.js`: Consumes WebSub callbacks at `/webhooks/youtube`, claims stages via `/notifications/history/claim`, re-subscribes at 90% of `lease_seconds`.
 
-## Data & Schema
+## Data & Conventions
 
-- Schema lives in `database/scripts/scaffolding.sql`; migrations are manual, so update the script and note downstream callers when changing tables.
-- `destinations` records track Discord channel, interval minutes, highlight colour bytes, and last message ID; keep payload shapes consistent with existing JSON bodies.
-- Notification dedupe relies on `past_notifications` uniqueness (`notification_info->>'id'`), so reuse `claim` when coordinating multi-stage alerts.
-- Server whitelist lives in `servers`; returning `{ whitelisted: false }` from `/servers/:id` causes the Discord bot to auto-leave.
+- Schema: `database/scripts/scaffolding.sql` (manual migrations). Tables include `sources`, `destinations`, `past_notifications`, `servers`.
+- Dedupe: Multi-stage notifications keyed by `notification_info->>'id'`; use `/notifications/history/claim` for race-safe inserts.
+- Colors: Discord embed color comes from PostgreSQL `bytea`; convert as `Buffer.from(info.highlightColour.data).toString()`.
+- YouTube: Strip leading `@` from handles; ignore videos older than 24h.
+- Startup: Use shared `waitfordb()` exponential backoff before network calls.
 
 ## Local Workflow
 
-- Copy secrets into each service’s `secrets/` directory and mount them with a `docker-compose.override.yaml` before running `docker compose up --build`.
-- The monorepo uses npm workspaces; install deps with `npm install` at root, then lint via `npm run lint --workspace=<service>`.
-- Register slash commands by populating `deploy-commands/config.json` and running `node deploy-commands/deploy-commands.js`.
-- `deploy.ps1` offers ad-hoc helpers on Windows but Kubernetes deployments rely on `kubectl apply -k k8s/overlays/<env>`.
+- Secrets: Populate service `secrets/` files and mount via `docker-compose.override.yaml` (see README for paths). Start with `docker compose up --build`.
+- Workspaces: Install at root (`npm install`), then lint per service (`npm run lint --workspace=<service>`).
+- Slash commands: Fill `deploy-commands/config.json` and run `node deploy-commands/deploy-commands.js`.
 
-## Patterns & Gotchas
+## Kubernetes & CI
 
-- Each service waits for the database using the shared `waitfordb()` exponential backoff helper; reuse it for new startup logic.
-- Inter-service calls are raw HTTP with JSON bodies (`http` module), so mind headers and `Content-Length` when adding endpoints.
-- Colour values passed to Discord embeds arrive as a Postgres `bytea`; convert with `Buffer.from(...).toString()` to retain existing behaviour.
-- Twitch event handlers must update both Discord and the DB (`/destinations/...` and `/notifications/history`) to keep state in sync.
-- YouTube handlers strip leading `@` from handles and ignore videos older than 24h; follow those heuristics to avoid noisy notifications.
+- Deploy via Kustomize overlays: `k8s/overlays/development` and `k8s/overlays/production`; set `TWITCH_PUBLIC_HOSTNAME` and `YOUTUBE_PUBLIC_HOSTNAME` via configmaps.
+- Images & automation: GitHub Actions `deploy-dev.yaml` (develop) and `deploy-prod.yaml` (main) update image tags and apply overlays; Artifact Registry hosts images.
+- Prereqs: Missing secrets cause probe failures; ensure keys match file names each service reads.
 
-## Deployment & CI
+## Examples (referenced files)
 
-- Kubernetes manifests are organized under `k8s/` with environment overlays (`overlays/development`, `overlays/production`) that set hostnames and optional `cloudflared` sidecars.
-- Production images live in Artifact Registry; update image tags via the GitHub Actions deploy workflows rather than editing manifests directly.
-- `deploy-dev.yaml` runs on `develop`, `deploy-prod.yaml` on `main`; both expect GKE Workload Identity plus Cloudflare credentials in repo secrets.
-- Missing K8s secrets cause Health/Readiness check failures—ensure secret file names match the ones read in each service before deploying.
+- Update Discord embed color: see `discord/src/index.js` (`EmbedBuilder().setColor(`#${Buffer.from(info.highlightColour.data).toString()}`)`).
+- Twitch "stream.online": build embed, POST to `discord:/embed/send`, then PUT `database:/destinations/<channelId>/<sourceId>` and record history (`twitch/src/twitch.js`).
+- YouTube WebSub: verify challenge on GET, handle XML payload, claim stage, send message via `discord:/message/send`, update last message id (`youtube/src/youtube.js`).
+
+Keep new routes and handlers consistent with the above patterns; prefer minimal changes that align with existing inter-service contracts and payload shapes.
+
+## Quick Start for Agents
+
+- Add Twitch source: POST `twitch:8004/add`
+  Body: `{ source_username, discord_channel, interval, highlight, message }`
+  Effect: Creates DB destination, starts EventSub for `source_id`.
+- Remove Twitch source: DELETE `twitch:8004/remove`
+  Body: `{ source_username, discord_channel }`
+  Effect: Removes DB destination, unsubscribes EventSub.
+- Send initial live embed: POST `discord:8001/embed/send`
+  Example body:
+  ```json
+  {
+    "channelInfo": [
+      {
+        "channelId": "123456789012345678",
+        "highlightColour": { "type": "Buffer", "data": [255, 0, 0] },
+        "messageId": null,
+        "notification_message": "Now live!"
+      }
+    ],
+    "embed": {
+      "title": "Untitled Broadcast",
+      "url": "https://www.twitch.tv/username",
+      "author": { "name": "DisplayName", "iconUrl": "https://...", "url": "https://..." },
+      "thumbnail": { "url": "https://static-cdn.jtvnw.net/ttv-static/404_boxart.jpg" },
+      "fields": [{ "name": "Game", "value": "N/A" }],
+      "image": {
+        "url": "https://static-cdn.jtvnw.net/previews-ttv/live_user_name-1280x720.png?r=1735470000"
+      }
+    }
+  }
+  ```
+  Then update DB last message id: PUT `database:8002/destinations/<channelId>/<sourceId>` with `{ "messageId": "<discordMessageId>" }`.
+- Record history (simple insert): POST `database:8002/notifications/history`
+  Body: `{ sourceId, notificationType: "stream.online", notificationInfo: { ... } }`.
+- Claim stage (race-safe, YouTube): POST `database:8002/notifications/history/claim`
+  Body: `{ sourceId, notificationType: "yt.live|yt.upcoming|yt.none", notificationInfo: "<JSON stringified video>" }`.
+  On `{ inserted: true }`, send plain message: POST `discord:8001/message/send` with:
+  ```json
+  {
+    "channelInfo": [
+      {
+        "channelId": "123456789012345678",
+        "highlightColour": { "type": "Buffer", "data": [0, 255, 0] },
+        "notification_message": ""
+      }
+    ],
+    "message": "Channel posted: https://youtu.be/VIDEOID"
+  }
+  ```
+- Whitelist check: GET `database:8002/servers/<guildId>` → `{ whitelisted: boolean }`; Discord auto-leaves on false.
+- Health/backoff: GET `database:8002/` and use `waitfordb()` before cross-service calls.
