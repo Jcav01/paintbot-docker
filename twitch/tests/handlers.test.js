@@ -96,21 +96,107 @@ describe('Twitch event handlers', () => {
     expect(mockChannelUpdateEvent.categoryName).toBe('Test Game');
   });
 
-  it('filters out destinations still inside the minimum interval window', async () => {
-    const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+  describe('filterDestinationsByOfflineInterval', () => {
+    it('filters out destinations still inside the minimum interval window', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
 
-    const now = Date.now();
-    const destinations = [
-      { channel_id: 'dest-1', minimum_interval: 15 },
-      { channel_id: 'dest-2', minimum_interval: 15 },
-    ];
+      const now = Date.now();
+      const destinations = [
+        { channel_id: 'dest-1', minimum_interval: 15 },
+        { channel_id: 'dest-2', minimum_interval: 15 },
+      ];
 
-    const filtered = filterDestinationsByOfflineInterval(
-      destinations,
-      new Date(now - 5 * 60000).toISOString(),
-      now
-    );
+      const filtered = filterDestinationsByOfflineInterval(
+        destinations,
+        new Date(now - 5 * 60000).toISOString(),
+        now
+      );
 
-    expect(filtered).toEqual([]);
+      expect(filtered).toEqual([]);
+    });
+
+    it('does NOT filter out destinations when elapsed time exceeds minimum interval', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+      const now = Date.now();
+      const destinations = [
+        { channel_id: 'dest-1', minimum_interval: 15 },
+        { channel_id: 'dest-2', minimum_interval: 15 },
+      ];
+
+      // 20 minutes have passed, which exceeds the 15 minute minimum interval
+      const filtered = filterDestinationsByOfflineInterval(
+        destinations,
+        new Date(now - 20 * 60000).toISOString(),
+        now
+      );
+
+      expect(filtered).toEqual(destinations);
+    });
+
+    it('returns all destinations when lastOfflineDate is null', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+      const destinations = [
+        { channel_id: 'dest-1', minimum_interval: 15 },
+        { channel_id: 'dest-2', minimum_interval: 15 },
+      ];
+
+      const filtered = filterDestinationsByOfflineInterval(destinations, null);
+
+      expect(filtered).toEqual(destinations);
+    });
+
+    it('returns all destinations when lastOfflineDate is undefined', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+      const destinations = [
+        { channel_id: 'dest-1', minimum_interval: 15 },
+        { channel_id: 'dest-2', minimum_interval: 15 },
+      ];
+
+      const filtered = filterDestinationsByOfflineInterval(destinations, undefined);
+
+      expect(filtered).toEqual(destinations);
+    });
+
+    it('handles empty destinations array', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+      const now = Date.now();
+      const destinations = [];
+
+      const filtered = filterDestinationsByOfflineInterval(
+        destinations,
+        new Date(now - 5 * 60000).toISOString(),
+        now
+      );
+
+      expect(filtered).toEqual([]);
+    });
+
+    it('filters destinations with different minimum_interval values correctly', async () => {
+      const { filterDestinationsByOfflineInterval } = await import('../src/twitch.js');
+
+      const now = Date.now();
+      const destinations = [
+        { channel_id: 'dest-1', minimum_interval: 5 }, // Should NOT be filtered (5 min interval, 10 min passed)
+        { channel_id: 'dest-2', minimum_interval: 15 }, // Should be filtered (15 min interval, only 10 min passed)
+        { channel_id: 'dest-3', minimum_interval: 10 }, // Boundary case: exactly 10 min passed, 10 min interval - should be included (<=)
+        { channel_id: 'dest-4', minimum_interval: 20 }, // Should be filtered (20 min interval, only 10 min passed)
+      ];
+
+      // 10 minutes have passed
+      const filtered = filterDestinationsByOfflineInterval(
+        destinations,
+        new Date(now - 10 * 60000).toISOString(),
+        now
+      );
+
+      expect(filtered).toEqual([
+        { channel_id: 'dest-1', minimum_interval: 5 },
+        { channel_id: 'dest-3', minimum_interval: 10 },
+      ]);
+    });
   });
 });
