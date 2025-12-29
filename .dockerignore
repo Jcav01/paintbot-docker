@@ -82,7 +82,6 @@ typings/
 
 # Docker-related files
 .dockerignore
-docker-compose.yaml
 docker-compose*.yaml
 .docker/
 
