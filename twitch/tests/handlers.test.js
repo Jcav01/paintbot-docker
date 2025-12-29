@@ -182,7 +182,7 @@ describe('Twitch event handlers', () => {
       const destinations = [
         { channel_id: 'dest-1', minimum_interval: 5 }, // Should NOT be filtered (5 min interval, 10 min passed)
         { channel_id: 'dest-2', minimum_interval: 15 }, // Should be filtered (15 min interval, only 10 min passed)
-        { channel_id: 'dest-3', minimum_interval: 10 }, // Edge case: exactly at boundary
+        { channel_id: 'dest-3', minimum_interval: 10 }, // Boundary case: exactly 10 min passed, 10 min interval - should be included (<=)
         { channel_id: 'dest-4', minimum_interval: 20 }, // Should be filtered (20 min interval, only 10 min passed)
       ];
 
