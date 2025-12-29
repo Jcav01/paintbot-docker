@@ -4,18 +4,23 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 const mockChannelsList = vi.fn();
 const mockVideosList = vi.fn();
 
-vi.mock('@googleapis/youtube', () => ({
-  youtube_v3: {
-    Youtube: vi.fn(() => ({
-      channels: {
+vi.mock('@googleapis/youtube', () => {
+  class MockYoutube {
+    constructor() {
+      this.channels = {
         list: mockChannelsList,
-      },
-      videos: {
+      };
+      this.videos = {
         list: mockVideosList,
-      },
-    })),
-  },
-}));
+      };
+    }
+  }
+  return {
+    youtube_v3: {
+      Youtube: MockYoutube,
+    },
+  };
+});
 
 // Mock http module
 vi.mock('http', async (importOriginal) => {

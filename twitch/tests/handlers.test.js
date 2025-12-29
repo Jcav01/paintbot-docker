@@ -7,32 +7,40 @@ const mockGetStream = vi.fn();
 const mockGetBroadcaster = vi.fn();
 
 vi.mock('@twurple/auth');
-vi.mock('@twurple/api', () => ({
-  ApiClient: vi.fn(() => ({
-    users: {
-      getUserByName: mockGetUserByName,
-    },
-    games: {
-      getGameById: mockGetGame,
-    },
-    eventSub: {
-      getSubscriptions: vi.fn().mockResolvedValue({
-        data: [],
-        totalCost: 0,
-        maxTotalCost: 100,
-      }),
-    },
-  })),
-}));
-vi.mock('@twurple/eventsub-http', () => ({
-  EventSubMiddleware: vi.fn(() => ({
-    apply: vi.fn(),
-    markAsReady: vi.fn(),
-    onStreamOnline: vi.fn(),
-    onStreamOffline: vi.fn(),
-    onChannelUpdate: vi.fn(),
-  })),
-}));
+vi.mock('@twurple/api', () => {
+  class MockApiClient {
+    constructor() {
+      this.users = {
+        getUserByName: mockGetUserByName,
+      };
+      this.games = {
+        getGameById: mockGetGame,
+      };
+      this.eventSub = {
+        getSubscriptions: vi.fn().mockResolvedValue({
+          data: [],
+          totalCost: 0,
+          maxTotalCost: 100,
+        }),
+      };
+    }
+  }
+  return {
+    ApiClient: MockApiClient,
+  };
+});
+vi.mock('@twurple/eventsub-http', () => {
+  class MockEventSubMiddleware {
+    apply() {}
+    markAsReady() {}
+    onStreamOnline() {}
+    onStreamOffline() {}
+    onChannelUpdate() {}
+  }
+  return {
+    EventSubMiddleware: MockEventSubMiddleware,
+  };
+});
 
 // Mock http module for inter-service calls
 vi.mock('http', async (importOriginal) => {
