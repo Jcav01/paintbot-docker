@@ -35,13 +35,17 @@ Paintbot orchestrates live-content notifications so Twitch and YouTube events ca
 ### Prerequisites
 
 - Docker Desktop 4.x (or newer) with Compose v2 enabled.
-- Node.js 20 LTS (18+ works) and npm for linting and utility scripts.
+- Node.js 24+ and npm for linting, formatting, and running tests (the repo expects Node 24+ for built-in `fetch`).
 - Google Cloud SDK (`gcloud`) if you need Artifact Registry or Cloud SQL access from your workstation.
 - Discord bot token, Twitch application credentials, and (optionally) YouTube API key.
 
 ### Prepare environment files
 
-1. Copy the sample env: `cp .env.example .env` and adjust values you want to override for local runs (for example `NODE_ENV=development`).
+1. (Optional) Copy the sample env file if you use `deploy.ps1` helpers or want local defaults for tooling:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+   Runtime secrets are **not** read from environment variables; services read secrets from mounted files under `/etc/secrets`.
 2. Populate secret files that mirror the Kubernetes mount layout. Each file must contain only the secret value and should remain untracked by git:
    ```
    discord/secrets/bot-token
@@ -54,7 +58,7 @@ Paintbot orchestrates live-content notifications so Twitch and YouTube events ca
    database/secrets/instanceConnectionName
    database/secrets/service-account/key.json
    ```
-   Optional: add `youtube/secrets/youtube-api-key` and `youtube/secrets/webhook-secret` if you plan to exercise the YouTube service locally.
+   Optional: add `youtube/secrets/youtube-api-key` if you plan to exercise the YouTube service locally (a `webhook-secret` key exists in templates but is not currently consumed by the service code).
 3. Create a Compose override to mount those secrets into the paths the services expect:
    ```yaml
    # docker-compose.override.yaml
@@ -69,6 +73,9 @@ Paintbot orchestrates live-content notifications so Twitch and YouTube events ca
        volumes:
          - ./database/secrets:/etc/secrets:ro
          - ./database/secrets/service-account:/etc/service-account:ro
+     youtube:
+       volumes:
+         - ./youtube/secrets:/etc/secrets:ro
    ```
 
 ### Start the stack
@@ -104,8 +111,9 @@ npm run format --workspace=twitch
 Populate `deploy-commands/config.json` (not tracked) with your bot token and application id, then publish slash commands:
 
 ```powershell
-npm install --workspace=deploy-commands
-node deploy-commands/deploy-commands.js
+cd deploy-commands
+npm install
+node deploy-commands.js
 ```
 
 ## Database schema
@@ -145,7 +153,9 @@ kubectl create secret generic discord-secrets \
 
 kubectl create secret generic youtube-secrets \
     --from-literal=youtube-api-key="..." \
-    --from-literal=webhook-secret="optional" --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Note: a `webhook-secret` key exists in templates/helpers but is not currently consumed by the YouTube service.
 
 kubectl create secret generic database-secrets \
     --from-literal=postgres-user="paintbot" \

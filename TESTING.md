@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project now has comprehensive unit and integration testing using **Vitest** and **Supertest**.
+This project has unit/integration-style HTTP tests using **Vitest** and **Supertest**.
 
 ## Running Tests
 
@@ -87,16 +87,18 @@ Vitest was selected over Jest, Mocha, or other frameworks because:
 
 ## Test Environment Setup
 
-All services set `NODE_ENV=test` guards:
+Discord/Twitch/YouTube use `NODE_ENV=test` guards:
 
 - Port binding disabled (prevents EADDRINUSE in tests)
 - Test secrets loaded instead of reading from `/etc/secrets`
 - Discord client login skipped
 - Command folder loading skipped
 
+Database tests avoid secret mounts by mocking the database adapter module (`database/src/db/index.js`).
+
 ## Mocking Strategy
 
-- **Database**: `vi.mock` on `db/index.js` for `query()` and `getClient()`
+- **Database**: `vi.mock()` the database adapter (`database/src/db/index.js`) for `query()` and `getClient()` so route tests stay in-process.
 - **Discord**: `vi.mock('discord.js')` to stub Client, EmbedBuilder, Events
 - **Twitch**: `vi.mock('@twurple/api')` and `vi.mock('@twurple/eventsub-http')`
 - **YouTube**: `vi.mock('@googleapis/youtube')`
