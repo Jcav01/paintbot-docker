@@ -6,8 +6,38 @@ const globals = require('globals');
 
 module.exports = [
   js.configs.recommended,
-  // Global settings for all JS files (default to ESM)
+  // Discord service uses CommonJS modules (except tests)
   {
+    files: ['discord/**/*.js', '!discord/tests/**'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'commonjs',
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'commonjs',
+      },
+      globals: {
+        ...globals.node, // Node.js globals: console, process, Buffer, setTimeout, etc.
+        fetch: 'readonly', // Node 18+ global fetch
+      },
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: true,
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-constant-condition': ['warn', { checkLoops: false }],
+    },
+  },
+  // Global settings for all other JS files (default to ESM)
+  {
+    files: [
+      'database/**/*.js',
+      'twitch/**/*.js',
+      'youtube/**/*.js',
+      'discord/tests/**/*.js',
+      '!**/node_modules/**',
+    ],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -26,27 +56,6 @@ module.exports = [
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-constant-condition': ['warn', { checkLoops: false }],
-    },
-  },
-  // Discord service uses CommonJS modules (except tests)
-  {
-    files: ['discord/**/*.js', '!discord/tests/**'],
-    languageOptions: {
-      sourceType: 'commonjs',
-    },
-  },
-  // Discord tests use ES modules
-  {
-    files: ['discord/tests/**/*.js'],
-    languageOptions: {
-      sourceType: 'module',
-    },
-  },
-  // Database, Twitch, YouTube tests use ES modules (explicit for clarity)
-  {
-    files: ['database/tests/**/*.js', 'twitch/tests/**/*.js', 'youtube/tests/**/*.js'],
-    languageOptions: {
-      sourceType: 'module',
     },
   },
   // Allow console in scripts & operational code
