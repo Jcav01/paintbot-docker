@@ -78,27 +78,32 @@ app.delete('/remove', express.json(), async (req, res) => {
         return;
       }
 
-      // Check if there are any remaining destinations for this source
-      const destinationRes = await fetch(`http://database:8002/destinations/source/${user.id}`);
-      let destinations = await destinationRes.json();
-      if (destinations.length > 0) {
-        // There are still destinations for this source, so don't remove the EventSub subscriptions
-        res.status(200).send({ message: 'Destination removed successfully' });
-        return;
-      }
-
-      // Stop listening for events for the removed source
-      subscription.subscriptions.forEach((sub) => {
-        sub.stop();
-        subs.splice(subs.indexOf(subscription), 1);
+      let data = '';
+      destination_res.on('data', (chunk) => {
+        data += chunk;
       });
 
-      // Log the current subscription quota
-      apiClient.eventSub.getSubscriptions().then((subs) => {
-        console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
-      });
+      destination_res.on('end', async () => {
+        const result = JSON.parse(data);
+        if (!result.sourceDeleted) {
+          // There are still destinations for this source, so don't remove the EventSub subscriptions
+          res.status(200).send({ message: 'Destination removed successfully' });
+          return;
+        }
 
-      res.send();
+        // Stop listening for events for the removed source
+        subscription.subscriptions.forEach((sub) => {
+          sub.stop();
+          subs.splice(subs.indexOf(subscription), 1);
+        });
+
+        // Log the current subscription quota
+        apiClient.eventSub.getSubscriptions().then((subs) => {
+          console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
+        });
+
+        res.send();
+      });
     });
     delete_req.end();
   });
