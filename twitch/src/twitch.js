@@ -102,7 +102,7 @@ app.delete('/remove', express.json(), async (req, res) => {
           console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
         });
 
-        res.send();
+        res.status(200).send({ message: 'Destination and EventSub removed successfully' });
       });
     });
     delete_req.on('error', (err) => {
