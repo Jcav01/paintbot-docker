@@ -94,8 +94,8 @@ app.delete('/remove', express.json(), async (req, res) => {
         // Stop listening for events for the removed source
         subscription.subscriptions.forEach((sub) => {
           sub.stop();
-          subs.splice(subs.indexOf(subscription), 1);
         });
+        subs.splice(subs.indexOf(subscription), 1);
 
         // Log the current subscription quota
         apiClient.eventSub.getSubscriptions().then((subs) => {
