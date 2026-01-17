@@ -145,7 +145,7 @@ const twitchListener = new EventSubMiddleware({
 });
 twitchListener.apply(app);
 
-const subs = [];
+export const subs = [];
 
 // Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
 const port = process.env.PORT || 8004;
