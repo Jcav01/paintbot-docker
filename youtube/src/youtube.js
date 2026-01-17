@@ -141,8 +141,9 @@ app.delete('/remove', express.json(), async (req, res) => {
     });
 
     if (result.sourceDeleted) {
-      await unsubscribeYouTubeNotification(user.id);
-      console.log('Unsubscribed from WebSub for', user.id);
+      unsubscribeYouTubeNotification(user.id)
+        .then(() => console.log('Unsubscribed from WebSub for', user.id))
+        .catch((err) => console.error('Failed to unsubscribe from WebSub:', err));
     }
 
     return res.send();
