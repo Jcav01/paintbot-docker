@@ -136,7 +136,13 @@ describe('Twitch routes', () => {
     };
     const mockRes = {
       statusCode: 200,
-      on: vi.fn(),
+      on: vi.fn((event, cb) => {
+        if (event === 'data') {
+          setImmediate(() => cb(JSON.stringify({ sourceDeleted: false })));
+        } else if (event === 'end') {
+          setImmediate(cb);
+        }
+      }),
     };
     http.request.mockImplementation((options, callback) => {
       setImmediate(() => callback(mockRes));
@@ -185,20 +191,18 @@ describe('Twitch routes', () => {
     };
     const mockRes = {
       statusCode: 200,
-      on: vi.fn(),
+      on: vi.fn((event, cb) => {
+        if (event === 'data') {
+          setImmediate(() => cb(JSON.stringify({ sourceDeleted: true })));
+        } else if (event === 'end') {
+          setImmediate(cb);
+        }
+      }),
     };
     http.request.mockImplementation((options, callback) => {
       setImmediate(() => callback(mockRes));
       return mockReq;
     });
-
-    // Mock fetch: first for waitfordb, then for destinations check
-    global.fetch
-      .mockResolvedValueOnce({ ok: true, status: 200 }) // waitfordb call
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      }); // destinations check - returns NO remaining destinations
 
     const payload = {
       source_username: 'testuser',
