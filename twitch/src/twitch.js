@@ -105,6 +105,12 @@ app.delete('/remove', express.json(), async (req, res) => {
         res.send();
       });
     });
+    delete_req.on('error', (err) => {
+      console.error('Error while removing Twitch destination from database:', err);
+      if (!res.headersSent) {
+        res.status(502).send({ message: 'Failed to remove destination' });
+      }
+    });
     delete_req.end();
   });
 });
