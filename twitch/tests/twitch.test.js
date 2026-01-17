@@ -143,16 +143,6 @@ describe('Twitch routes', () => {
       return mockReq;
     });
 
-    // Mock fetch: first for waitfordb, then for destinations check
-    global.fetch
-      .mockResolvedValueOnce({ ok: true, status: 200 }) // waitfordb call
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [
-          { channel_id: 'chan-456', source_id: 'twitch-user-456' },
-        ],
-      }); // destinations check - returns remaining destinations
-
     const payload = {
       source_username: 'testuser',
       discord_channel: 'chan-123',
