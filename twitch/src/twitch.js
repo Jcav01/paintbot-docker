@@ -71,25 +71,45 @@ app.delete('/remove', express.json(), async (req, res) => {
       path: `/destination/${req.body.discord_channel}/${user.id}`,
       method: 'DELETE',
     };
-    const delete_req = http.request(options, (destination_res) => {
+    const delete_req = http.request(options, async (destination_res) => {
       // The response has been received.
       if (destination_res.statusCode !== 200) {
         res.status(destination_res.statusCode).send({ message: destination_res.message });
         return;
       }
 
-      // Stop listening for events for the removed source
-      subscription.subscriptions.forEach((sub) => {
-        sub.stop();
+      let data = '';
+      destination_res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      destination_res.on('end', async () => {
+        const result = JSON.parse(data);
+        if (!result.sourceDeleted) {
+          // There are still destinations for this source, so don't remove the EventSub subscriptions
+          res.status(200).send({ message: 'Destination removed successfully' });
+          return;
+        }
+
+        // Stop listening for events for the removed source
+        subscription.subscriptions.forEach((sub) => {
+          sub.stop();
+        });
         subs.splice(subs.indexOf(subscription), 1);
-      });
 
-      // Log the current subscription quota
-      apiClient.eventSub.getSubscriptions().then((subs) => {
-        console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
-      });
+        // Log the current subscription quota
+        apiClient.eventSub.getSubscriptions().then((subs) => {
+          console.log(`Subscription quota: ${subs.totalCost} / ${subs.maxTotalCost}`);
+        });
 
-      res.send();
+        res.status(200).send({ message: 'Destination and EventSub removed successfully' });
+      });
+    });
+    delete_req.on('error', (err) => {
+      console.error('Error while removing Twitch destination from database:', err);
+      if (!res.headersSent) {
+        res.status(502).send({ message: 'Failed to remove destination' });
+      }
     });
     delete_req.end();
   });
@@ -136,7 +156,7 @@ const twitchListener = new EventSubMiddleware({
 });
 twitchListener.apply(app);
 
-const subs = [];
+export const subs = [];
 
 // Bind listener immediately; perform slower startup tasks asynchronously to avoid ingress routing to a closed port.
 const port = process.env.PORT || 8004;

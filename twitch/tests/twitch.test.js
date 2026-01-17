@@ -45,7 +45,7 @@ vi.mock('http', async (importOriginal) => {
 });
 
 // Import app after mocks
-const { app, waitfordb } = await import('../src/twitch.js');
+const { app, waitfordb, subs } = await import('../src/twitch.js');
 
 describe('waitfordb', () => {
   beforeEach(() => {
@@ -113,10 +113,22 @@ describe('Twitch routes', () => {
     expect(mockGetUserByName).toHaveBeenCalledWith('testuser');
   });
 
-  it('DELETE /remove removes a destination and stops EventSub', async () => {
+  it('DELETE /remove preserves EventSub when other destinations exist', async () => {
     mockGetUserByName.mockResolvedValue({ id: 'twitch-user-456' });
 
-    // Mock http.request to simulate DB responding successfully
+    // Add a mock subscription to the subs array
+    const mockStop = vi.fn();
+    const mockSubscription = {
+      source: 'twitch-user-456',
+      subscriptions: [
+        { stop: mockStop },
+        { stop: mockStop },
+        { stop: mockStop },
+      ],
+    };
+    subs.push(mockSubscription);
+
+    // Mock http.request to simulate DB responding successfully to DELETE
     const mockReq = {
       write: vi.fn(),
       end: vi.fn(),
@@ -124,7 +136,13 @@ describe('Twitch routes', () => {
     };
     const mockRes = {
       statusCode: 200,
-      on: vi.fn(),
+      on: vi.fn((event, cb) => {
+        if (event === 'data') {
+          setImmediate(() => cb(JSON.stringify({ sourceDeleted: false })));
+        } else if (event === 'end') {
+          setImmediate(cb);
+        }
+      }),
     };
     http.request.mockImplementation((options, callback) => {
       setImmediate(() => callback(mockRes));
@@ -138,9 +156,70 @@ describe('Twitch routes', () => {
 
     const response = await request(app).delete('/remove').send(payload);
 
-    // May return 404 if subscription not found in test env, or 200 if mocked properly
-    expect([200, 404]).toContain(response.status);
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Destination removed successfully');
     expect(mockGetUserByName).toHaveBeenCalledWith('testuser');
+    // Verify that EventSub subscriptions were NOT stopped
+    expect(mockStop).not.toHaveBeenCalled();
+    // Verify subscription is still in the subs array
+    expect(subs).toContain(mockSubscription);
+
+    // Clean up
+    subs.length = 0;
+  });
+
+  it('DELETE /remove stops EventSub when removing last destination', async () => {
+    mockGetUserByName.mockResolvedValue({ id: 'twitch-user-789' });
+
+    // Add a mock subscription to the subs array
+    const mockStop = vi.fn();
+    const mockSubscription = {
+      source: 'twitch-user-789',
+      subscriptions: [
+        { stop: mockStop },
+        { stop: mockStop },
+        { stop: mockStop },
+      ],
+    };
+    subs.push(mockSubscription);
+
+    // Mock http.request to simulate DB responding successfully to DELETE
+    const mockReq = {
+      write: vi.fn(),
+      end: vi.fn(),
+      on: vi.fn(),
+    };
+    const mockRes = {
+      statusCode: 200,
+      on: vi.fn((event, cb) => {
+        if (event === 'data') {
+          setImmediate(() => cb(JSON.stringify({ sourceDeleted: true })));
+        } else if (event === 'end') {
+          setImmediate(cb);
+        }
+      }),
+    };
+    http.request.mockImplementation((options, callback) => {
+      setImmediate(() => callback(mockRes));
+      return mockReq;
+    });
+
+    const payload = {
+      source_username: 'testuser',
+      discord_channel: 'chan-123',
+    };
+
+    const response = await request(app).delete('/remove').send(payload);
+
+    expect(response.status).toBe(200);
+    expect(mockGetUserByName).toHaveBeenCalledWith('testuser');
+    // Verify that EventSub subscriptions WERE stopped
+    expect(mockStop).toHaveBeenCalledTimes(3);
+    // Verify subscription was removed from the subs array
+    expect(subs).not.toContain(mockSubscription);
+
+    // Clean up
+    subs.length = 0;
   });
 
   it('GET / health check waits for database then returns OK', async () => {

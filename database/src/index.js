@@ -275,13 +275,14 @@ app.delete(
       req.params.source
     );
     const client = await db.getClient();
+    let count;
     try {
       await client.query('BEGIN');
       await client.query('DELETE FROM destinations WHERE channel_id = $1 AND source_id = $2', [
         req.params.destination,
         req.params.source,
       ]);
-      const count = await client.query('SELECT COUNT(*) FROM destinations WHERE source_id = $1', [
+      count = await client.query('SELECT COUNT(*) FROM destinations WHERE source_id = $1', [
         req.params.source,
       ]);
       if (count.rows[0].count == 0) {
@@ -297,7 +298,7 @@ app.delete(
     } finally {
       client.release();
     }
-    res.send();
+    res.status(200).send({ sourceDeleted: count.rows[0].count == 0 });
   })
 );
 
