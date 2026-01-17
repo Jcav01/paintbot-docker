@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import * as http from 'http';
+import * as https from 'https';
 
 // Mock YouTube API before importing app
 const mockChannelsList = vi.fn();
@@ -26,6 +27,15 @@ vi.mock('@googleapis/youtube', () => {
 
 // Mock http module for database calls
 vi.mock('http', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    request: vi.fn(),
+  };
+});
+
+// Mock https module for WebSub calls
+vi.mock('https', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -137,7 +147,7 @@ describe('YouTube routes', () => {
     expect(response.text).toBe('challenge-token-123');
   });
 
-  it('DELETE /remove removes a destination', async () => {
+  it('DELETE /remove removes a destination without unsubscribing when destinations remain', async () => {
     mockChannelsList.mockResolvedValue({
       data: {
         items: [{ id: 'yt-channel-789' }],
@@ -153,6 +163,7 @@ describe('YouTube routes', () => {
     const mockRes = {
       statusCode: 200,
       on: vi.fn((event, cb) => {
+        if (event === 'data') setImmediate(() => cb(JSON.stringify({ sourceDeleted: false })));
         if (event === 'end') setImmediate(cb);
       }),
     };
@@ -173,6 +184,70 @@ describe('YouTube routes', () => {
       part: 'id',
       forHandle: 'testchannel',
     });
+  });
+
+  it('DELETE /remove unsubscribes from WebSub when source is deleted', async () => {
+    mockChannelsList.mockResolvedValue({
+      data: {
+        items: [{ id: 'yt-channel-456' }],
+      },
+    });
+
+    const httpMockReq = {
+      write: vi.fn(),
+      end: vi.fn(),
+      on: vi.fn(),
+    };
+    const httpMockRes = {
+      statusCode: 200,
+      on: vi.fn((event, cb) => {
+        if (event === 'data') setImmediate(() => cb(JSON.stringify({ sourceDeleted: true })));
+        if (event === 'end') setImmediate(cb);
+      }),
+    };
+
+    const httpsMockReq = {
+      write: vi.fn(),
+      end: vi.fn(),
+      on: vi.fn(),
+    };
+    const httpsMockRes = {
+      statusCode: 202,
+      on: vi.fn((event, cb) => {
+        if (event === 'data') setImmediate(() => cb(''));
+        if (event === 'end') setImmediate(cb);
+      }),
+    };
+
+    // Mock http for database and https for WebSub
+    http.request.mockImplementation((options, callback) => {
+      setImmediate(() => callback(httpMockRes));
+      return httpMockReq;
+    });
+
+    https.request.mockImplementation((options, callback) => {
+      setImmediate(() => callback(httpsMockRes));
+      return httpsMockReq;
+    });
+
+    const payload = {
+      source_username: '@testchannel',
+      discord_channel: 'chan-999',
+    };
+
+    const response = await request(app).delete('/remove').send(payload);
+
+    expect(response.status).toBe(200);
+    expect(https.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostname: 'pubsubhubbub.appspot.com',
+        path: '/subscribe',
+      }),
+      expect.any(Function)
+    );
+    expect(httpsMockReq.write).toHaveBeenCalledWith(
+      expect.stringContaining('hub.mode=unsubscribe')
+    );
   });
 
   it('DELETE /remove returns 404 when channel not found', async () => {

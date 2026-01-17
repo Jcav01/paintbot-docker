@@ -118,7 +118,7 @@ app.delete('/remove', express.json(), async (req, res) => {
       return res.status(404).send({ message: 'User not found' });
     }
 
-    await new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       const options = {
         host: 'database',
         port: '8002',
@@ -133,12 +133,18 @@ app.delete('/remove', express.json(), async (req, res) => {
             console.error('DB delete failed:', destination_res.statusCode, body);
             return reject(new Error(`DB responded ${destination_res.statusCode}`));
           }
-          resolve();
+          resolve(JSON.parse(body));
         });
       });
       delete_req.on('error', reject);
       delete_req.end();
     });
+
+    if (result.sourceDeleted) {
+      await unsubscribeYouTubeNotification(user.id);
+      console.log('Unsubscribed from WebSub for', user.id);
+    }
+
     return res.send();
   } catch (err) {
     console.error('YouTube /remove failed:', err.message);
@@ -319,6 +325,46 @@ async function setupYouTubeNotification(source_id) {
           resolve(undefined);
         } else {
           reject(new Error(`Hub responded ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function unsubscribeYouTubeNotification(source_id) {
+  const hub = {
+    'hub.callback': `https://${HOSTNAME}/webhooks/youtube`,
+    'hub.mode': 'unsubscribe',
+    'hub.topic': `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${source_id}`,
+    'hub.verify': 'async',
+    'hub.verify_token': '',
+  };
+
+  const body = new URLSearchParams(hub).toString();
+
+  const reqOptions = {
+    method: 'POST',
+    hostname: 'pubsubhubbub.appspot.com',
+    path: '/subscribe',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(body),
+    },
+  };
+
+  await new Promise((resolve, reject) => {
+    const req = https.request(reqOptions, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          console.log('WebSub unsubscribe response:', res.statusCode, data || '(no body)');
+          resolve(undefined);
+        } else {
+          reject(new Error(`Unsubscribe failed ${res.statusCode}: ${data}`));
         }
       });
     });
