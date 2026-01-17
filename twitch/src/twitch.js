@@ -71,10 +71,19 @@ app.delete('/remove', express.json(), async (req, res) => {
       path: `/destination/${req.body.discord_channel}/${user.id}`,
       method: 'DELETE',
     };
-    const delete_req = http.request(options, (destination_res) => {
+    const delete_req = http.request(options, async (destination_res) => {
       // The response has been received.
       if (destination_res.statusCode !== 200) {
         res.status(destination_res.statusCode).send({ message: destination_res.message });
+        return;
+      }
+
+      // Check if there are any remaining destinations for this source
+      const destinationRes = await fetch(`http://database:8002/destinations/source/${user.id}`);
+      let destinations = await destinationRes.json();
+      if (destinations.length > 0) {
+        // There are still destinations for this source, so don't remove the EventSub subscriptions
+        res.status(200).send({ message: 'Destination removed successfully' });
         return;
       }
 
