@@ -124,6 +124,21 @@ The PostgreSQL schema lives in `database/scripts/scaffolding.sql`. Apply it to a
 psql "sslmode=require host=127.0.0.1 port=5432 dbname=postgres user=paintbot" -f database/scripts/scaffolding.sql
 ```
 
+## Testing
+
+The project uses [Vitest](https://vitest.dev/) and [Supertest](https://github.com/ladjs/supertest) for unit and integration-style HTTP tests across all four services (43 tests across 6 files). See [TESTING.md](TESTING.md) for the full testing guide, including coverage reporting, mocking strategies, and the test roadmap.
+
+```powershell
+# Run all tests
+npm test
+
+# Run tests for a specific service
+npm test --workspace=database
+
+# Generate coverage reports
+npm run test:coverage
+```
+
 ## Kubernetes Deployment
 
 ### Requirements
@@ -152,8 +167,7 @@ kubectl create secret generic discord-secrets \
     --from-literal=bot-token="discord-bot-token"
 
 kubectl create secret generic youtube-secrets \
-    --from-literal=youtube-api-key="..." \
-  --dry-run=client -o yaml | kubectl apply -f -
+    --from-literal=youtube-api-key="..."
 
 # Note: a `webhook-secret` key exists in templates/helpers but is not currently consumed by the YouTube service.
 

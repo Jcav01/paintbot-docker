@@ -119,7 +119,7 @@ Vitest is configured with `@vitest/coverage-v8` to track test coverage across al
 Each service generates coverage in its `coverage/` directory:
 
 - `index.html` – Interactive coverage report
-- `coverage.json` – Machine-readable metrics
+- `coverage-final.json` – Machine-readable metrics
 - Console output shows line, branch, function, and statement coverage percentages
 
 ### CI Integration
