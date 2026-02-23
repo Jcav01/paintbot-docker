@@ -21,7 +21,7 @@
   "license": "ISC",
   "dependencies": {
     "@googleapis/youtube": "^31.0.0",
-    "@rowanmanning/feed-parser": "^2.1.1",
+    "@rowanmanning/feed-parser": "^2.1.2",
     "express": "^5.2.1",
     "express-xml-bodyparser": "^0.4.1"
   }
