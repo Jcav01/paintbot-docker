@@ -22,6 +22,6 @@
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.9.1",
     "express": "^5.2.0",
-    "pg": "^8.19.0"
+    "pg": "^8.20.0"
   }
 }
