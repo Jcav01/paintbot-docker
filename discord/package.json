@@ -20,7 +20,7 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.26.2",
+    "discord.js": "^14.26.3",
     "express": "^5.2.1",
     "text-table": "^0.2.0"
   }
