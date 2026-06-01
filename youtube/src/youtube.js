@@ -33,7 +33,7 @@ if (process.env.NODE_ENV === 'test') {
 }
 
 app.post('/add', express.json(), async (req, res) => {
-  console.log('Received request to add Youtube source:', req.body);
+  console.log('Received request to add Youtube source:', req.body.source_username);
   try {
     await waitfordb('http://database:8002');
 
@@ -87,7 +87,7 @@ app.post('/add', express.json(), async (req, res) => {
 
     setupYouTubeNotification(user.id)
       .then(() => console.log('Requested WebSub subscription for', user.id))
-      .catch((err) => console.error('Failed to request WebSub subscription:', err));
+      .catch((err) => console.error('Failed to request WebSub subscription:', err.message));
 
     return res.send();
   } catch (err) {
@@ -143,7 +143,7 @@ app.delete('/remove', express.json(), async (req, res) => {
     if (result.sourceDeleted) {
       unsubscribeYouTubeNotification(user.id)
         .then(() => console.log('Unsubscribed from WebSub for', user.id))
-        .catch((err) => console.error('Failed to unsubscribe from WebSub:', err));
+        .catch((err) => console.error('Failed to unsubscribe from WebSub:', err.message));
     }
 
     return res.send();
@@ -162,10 +162,8 @@ app.get('/', async (req, res) => {
 app
   .route('/webhooks/youtube')
   .get(async (req, res) => {
-    const mode = req.query['hub.mode'];
-    const topic = req.query['hub.topic'];
     const challenge = req.query['hub.challenge'];
-    console.log('YouTube WebSub verify:', { mode, topic });
+    console.log('YouTube WebSub verify request received');
     if (challenge) {
       return res.status(200).send(challenge);
     }
@@ -173,7 +171,7 @@ app
   })
   .post(xmlbodyparser(), async (req, res) => {
     res.sendStatus(200);
-    console.log('YouTube WebSub notification:', JSON.stringify(req.body));
+    console.log('YouTube WebSub notification received');
     if (!req.body) return;
 
     const entry = req.body?.feed?.entry?.[0];
@@ -217,7 +215,7 @@ app
         `http://database:8002/notifications/history/types/${encodeURIComponent(videoId)}`
       );
       const existingTypes = new Set(await existingTypesRes.json());
-      console.log('Existing notification types for', videoId, existingTypes);
+      console.log('Existing notification types count for', videoId, existingTypes.size);
 
       let shouldNotify = false;
       const streamEnded = Boolean(video.liveStreamingDetails?.actualEndTime);
