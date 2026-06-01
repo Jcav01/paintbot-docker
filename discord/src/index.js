@@ -118,7 +118,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Handle requests from other services to post notifications
 app.post('/embed/send', async (req, res) => {
-  console.log(JSON.stringify(req.body.embed));
   const messages = [];
   await Promise.all(
     req.body.channelInfo.map(async (info) => {
@@ -147,7 +146,6 @@ app.post('/embed/send', async (req, res) => {
 
 // Handle requests from other services to post notifications
 app.post('/message/send', async (req, res) => {
-  console.log(JSON.stringify(req.body.message));
   const messages = [];
   await Promise.all(
     req.body.channelInfo.map(async (info) => {

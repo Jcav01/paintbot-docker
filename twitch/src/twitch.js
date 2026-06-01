@@ -7,7 +7,6 @@ import express from 'express';
 export const app = express();
 
 app.post('/add', express.json(), async (req, res) => {
-  console.log('Received request to add Twitch source:', req.body.source_username);
   await waitfordb('http://database:8002');
 
   apiClient.users.getUserByName(req.body.source_username).then(async (user) => {
@@ -50,12 +49,6 @@ app.post('/add', express.json(), async (req, res) => {
   });
 });
 app.delete('/remove', express.json(), async (req, res) => {
-  console.log(
-    'Received request to remove Twitch source:',
-    req.body.source_username,
-    'for channel',
-    req.body.discord_channel
-  );
   await waitfordb('http://database:8002');
 
   apiClient.users.getUserByName(req.body.source_username).then(async (user) => {
@@ -220,7 +213,6 @@ async function handleStreamOnline(event) {
   } else {
     // If no last update, get the game from the stream
     // Allow some time for Twitch to update the stream info
-    console.warn('Getting stream info...');
     await new Promise((r) => setTimeout(r, 500));
 
     // Create an object to POST to the Discord webhook

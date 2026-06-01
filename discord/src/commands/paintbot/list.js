@@ -17,9 +17,7 @@ module.exports = {
     // Extends the interaction timeout to 15 minutes
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    console.log('Fetching data from database:8002/destinations/channel');
     const res = await fetch(`http://database:8002/destinations/channel/${interaction.channel.id}`);
-    console.log('Status Code:', res.status);
     const data = await res.json();
 
     const dataArr = [['ID', 'Username', 'Minimum Interval', 'Highlight Colour']];
