@@ -16,7 +16,6 @@ try {
   };
 
   console.log('Database secrets loaded successfully from Kubernetes');
-  console.log('Instance connection name:', secrets.instanceConnectionName);
 } catch (err) {
   console.error('Failed to load database secrets:', err.message);
   process.exit(1);
