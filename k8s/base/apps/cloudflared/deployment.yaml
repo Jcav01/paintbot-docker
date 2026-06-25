@@ -36,8 +36,6 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - tunnel
-            - --protocol
-            - http2
             - --loglevel
             - warn
             - --config
