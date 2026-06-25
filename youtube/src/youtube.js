@@ -191,7 +191,7 @@ app
     if (!req.body) return;
 
     if (!videoId || !channelId) {
-      console.warn('YouTube WebSub: missing identifiers');
+      console.log('YouTube WebSub: missing identifiers, ignoring callback payload');
       return;
     }
 
