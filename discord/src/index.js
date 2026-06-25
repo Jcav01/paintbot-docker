@@ -57,6 +57,10 @@ if (process.env.NODE_ENV !== 'test') {
       }
     }
   }
+
+  console.log(
+    `Loaded ${client.commands.size} slash commands: ${Array.from(client.commands.keys()).join(', ')}`
+  );
 }
 
 // When the client is ready, run this code (only once)
@@ -85,11 +89,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Ignore interactions that are not slash commands
   if (!interaction.isChatInputCommand()) return;
 
+  console.log(
+    `Received slash command: /${interaction.commandName} in guild ${interaction.guildId ?? 'DM'}`
+  );
+
   // Retrieve command from collection
   const command = interaction.client.commands.get(interaction.commandName);
 
   if (!command) {
     console.error(`No command matching ${interaction.commandName} was found.`);
+    await interaction.reply({
+      content:
+        'This command is not currently registered on the bot runtime. Try syncing slash commands and retry.',
+      ephemeral: true,
+    });
     return;
   }
 
