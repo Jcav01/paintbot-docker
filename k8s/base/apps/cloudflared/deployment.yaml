@@ -36,6 +36,10 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - tunnel
+            - --protocol
+            - http2
+            - --loglevel
+            - warn
             - --config
             - /etc/cloudflared/config/config.yaml
             - run
