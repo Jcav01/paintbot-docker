@@ -155,18 +155,7 @@ app.get('/', async (req, res) => {
 app
   .route('/webhooks/youtube')
   .get(async (req, res) => {
-    const topic = req.query['hub.topic'];
-    const mode = req.query['hub.mode'];
     const challenge = req.query['hub.challenge'];
-    console.log(
-      'YouTube WebSub GET verification:',
-      JSON.stringify({
-        mode,
-        hasChallenge: Boolean(challenge),
-        topic,
-        userAgent: req.get('user-agent') || null,
-      })
-    );
 
     if (challenge) {
       return res.status(200).send(challenge);
@@ -177,21 +166,12 @@ app
     const entry = req.body?.feed?.entry?.[0];
     const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
     const channelId = entry?.['yt:channelid']?.[0];
-    console.log(
-      'YouTube WebSub POST received:',
-      JSON.stringify({
-        hasBody: Boolean(req.body),
-        channelId: channelId || null,
-        videoId: videoId || null,
-        userAgent: req.get('user-agent') || null,
-      })
-    );
 
     res.sendStatus(200);
     if (!req.body) return;
 
     if (!videoId || !channelId) {
-      console.log('YouTube WebSub: missing identifiers, ignoring callback payload');
+      console.warn('YouTube WebSub: missing identifiers');
       return;
     }
 
