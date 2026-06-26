@@ -57,17 +57,11 @@ if (process.env.NODE_ENV !== 'test') {
       }
     }
   }
-
-  console.log(
-    `Loaded ${client.commands.size} slash commands: ${Array.from(client.commands.keys()).join(', ')}`
-  );
 }
 
 // When the client is ready, run this code (only once)
 client.once(Events.ClientReady, async (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
-  console.log(`Discord application id: ${c.application?.id ?? 'unknown'}`);
-  await logRegisteredCommands(c);
 
   for (const guild of client.guilds.cache.values()) {
     const isWhitelisted = await checkServerWhitelist(guild.id);
@@ -87,36 +81,10 @@ client.on(Events.GuildCreate, async (guild) => {
   }
 });
 
-client.on(Events.Warn, (message) => {
-  console.warn('Discord client warning:', message);
-});
-
-client.on(Events.Error, (error) => {
-  console.error('Discord client error:', error);
-});
-
-client.on(Events.ShardDisconnect, (event, shardId) => {
-  console.warn(
-    `Discord shard disconnected: shard=${shardId}, code=${event?.code ?? 'unknown'}, reason=${event?.reason ?? 'unknown'}`
-  );
-});
-
-client.on(Events.ShardReconnecting, (shardId) => {
-  console.warn(`Discord shard reconnecting: shard=${shardId}`);
-});
-
-client.on(Events.ShardResume, (shardId, replayedEvents) => {
-  console.log(`Discord shard resumed: shard=${shardId}, replayedEvents=${replayedEvents}`);
-});
-
 // Handle slash commands
 client.on(Events.InteractionCreate, async (interaction) => {
   // Ignore interactions that are not slash commands
   if (!interaction.isChatInputCommand()) return;
-
-  console.log(
-    `Received slash command: /${interaction.commandName} in guild ${interaction.guildId ?? 'DM'}`
-  );
 
   // Retrieve command from collection
   const command = interaction.client.commands.get(interaction.commandName);
@@ -278,30 +246,6 @@ function waitfordb(DBUrl, interval = 1500, attempts = 10) {
 
     reject(new Error(`Database is down: ${attempts} attempts tried`));
   });
-}
-
-async function logRegisteredCommands(c) {
-  try {
-    const globalCommands = await c.application.commands.fetch();
-    const globalNames = globalCommands.map((command) => command.name);
-    console.log(
-      `Registered global slash commands (${globalCommands.size}): ${globalNames.join(', ') || '(none)'}`
-    );
-  } catch (error) {
-    console.error('Failed to fetch global slash commands:', error.message);
-  }
-
-  for (const guild of c.guilds.cache.values()) {
-    try {
-      const guildCommands = await guild.commands.fetch();
-      const guildNames = guildCommands.map((command) => command.name);
-      console.log(
-        `Registered guild slash commands for ${guild.id} (${guildCommands.size}): ${guildNames.join(', ') || '(none)'}`
-      );
-    } catch (error) {
-      console.error(`Failed to fetch guild slash commands for ${guild.id}:`, error.message);
-    }
-  }
 }
 
 module.exports = { app, waitfordb };
