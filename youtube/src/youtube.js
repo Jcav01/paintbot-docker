@@ -485,7 +485,12 @@ async function syncEventSubSubscriptions() {
 
   // 2. Setup WebSub notifications for each source
   sourceIds.forEach((source_id) => {
-    setupYouTubeNotification(source_id);
+    setupYouTubeNotification(source_id).catch((err) => {
+      console.error('Startup WebSub subscribe failed:', {
+        source_id,
+        message: err.message,
+      });
+    });
   });
 
   // 3. Setup automatic re-subscription for all sources
@@ -495,7 +500,12 @@ async function syncEventSubSubscriptions() {
       const sources = await sourcesRes.json();
       const sourceIds = sources.map((src) => src.source_id);
       sourceIds.forEach((source_id) => {
-        setupYouTubeNotification(source_id);
+        setupYouTubeNotification(source_id).catch((err) => {
+          console.error('Periodic WebSub subscribe failed:', {
+            source_id,
+            message: err.message,
+          });
+        });
       });
     },
     lease_seconds * 1000 * 0.9 // set resubscribe to trigger after 90% of lease time, in milliseconds
