@@ -9,7 +9,10 @@ COPY youtube/package.json ./youtube/
 
 RUN npm ci --workspace=youtube --omit=dev
 
-# Bundle app source (copy contents to root)
+# Run service from workspace directory so Node can resolve workspace-local node_modules
+WORKDIR /usr/src/app/youtube
+
+# Bundle app source in the workspace directory
 COPY youtube/src/ .
 
 EXPOSE 8005
