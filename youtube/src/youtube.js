@@ -22,6 +22,34 @@ function previewHubBody(body) {
   return (body || '').replace(/\s+/g, ' ').trim().slice(0, HUB_BODY_LOG_PREVIEW_LEN);
 }
 
+async function logWebhookCallbackSelfCheck() {
+  const challenge = `selfcheck-${Date.now()}`;
+  const callbackUrl = `https://${HOSTNAME}/webhooks/youtube?hub.mode=subscribe&hub.topic=${encodeURIComponent('https://www.youtube.com/xml/feeds/videos.xml?channel_id=SELF_CHECK')}&hub.challenge=${encodeURIComponent(challenge)}&hub.lease_seconds=${lease_seconds}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(callbackUrl, { method: 'GET', signal: controller.signal });
+    const body = await res.text();
+    const ok = res.status === 200 && body === challenge;
+    console.log('YouTube WebSub callback self-check:', {
+      hostname: HOSTNAME,
+      status: res.status,
+      challengeEchoMatches: body === challenge,
+      bodyPreview: previewHubBody(body),
+      ok,
+    });
+  } catch (err) {
+    console.error('YouTube WebSub callback self-check failed:', {
+      hostname: HOSTNAME,
+      message: err.message,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // In Kubernetes, secrets are mounted as individual files in a directory
 const secretsPath = '/etc/secrets';
 let youtube;
@@ -301,6 +329,7 @@ if (process.env.NODE_ENV !== 'test') {
       try {
         await waitfordb('http://database:8002');
         console.log('Database is up');
+        await logWebhookCallbackSelfCheck();
         await syncEventSubSubscriptions();
       } catch (e) {
         console.error('Post-listen startup task failed:', e.message);
