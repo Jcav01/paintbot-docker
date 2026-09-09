@@ -13,6 +13,9 @@ const lease_seconds = 864000; // 10 days
 const HUB_HOSTNAME = 'pubsubhubbub.appspot.com';
 const HUB_PATH = '/subscribe';
 const HUB_BODY_LOG_PREVIEW_LEN = 220;
+const HUB_SUBSCRIBE_MAX_ATTEMPTS = 4;
+const HUB_RETRY_DEFAULT_MS = 3000;
+const HUB_RETRY_MAX_MS = 120000;
 
 function webSubTraceId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -22,32 +25,31 @@ function previewHubBody(body) {
   return (body || '').replace(/\s+/g, ' ').trim().slice(0, HUB_BODY_LOG_PREVIEW_LEN);
 }
 
-async function logWebhookCallbackSelfCheck() {
-  const challenge = `selfcheck-${Date.now()}`;
-  const callbackUrl = `https://${HOSTNAME}/webhooks/youtube?hub.mode=subscribe&hub.topic=${encodeURIComponent('https://www.youtube.com/xml/feeds/videos.xml?channel_id=SELF_CHECK')}&hub.challenge=${encodeURIComponent(challenge)}&hub.lease_seconds=${lease_seconds}`;
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+function parseRetryAfterMs(retryAfterValue) {
+  if (!retryAfterValue) return null;
 
-  try {
-    const res = await fetch(callbackUrl, { method: 'GET', signal: controller.signal });
-    const body = await res.text();
-    const ok = res.status === 200 && body === challenge;
-    console.log('YouTube WebSub callback self-check:', {
-      hostname: HOSTNAME,
-      status: res.status,
-      challengeEchoMatches: body === challenge,
-      bodyPreview: previewHubBody(body),
-      ok,
-    });
-  } catch (err) {
-    console.error('YouTube WebSub callback self-check failed:', {
-      hostname: HOSTNAME,
-      message: err.message,
-    });
-  } finally {
-    clearTimeout(timeout);
+  const seconds = Number.parseInt(retryAfterValue, 10);
+  if (Number.isFinite(seconds)) {
+    return Math.min(Math.max(seconds * 1000, 0), HUB_RETRY_MAX_MS);
   }
+
+  const targetTs = Date.parse(retryAfterValue);
+  if (Number.isNaN(targetTs)) return null;
+  return Math.min(Math.max(targetTs - Date.now(), 0), HUB_RETRY_MAX_MS);
+}
+
+function backoffWithJitterMs(attempt) {
+  const exponential = HUB_RETRY_DEFAULT_MS * 2 ** (attempt - 1);
+  const jitter = Math.floor(Math.random() * 1000);
+  return Math.min(exponential + jitter, HUB_RETRY_MAX_MS);
+}
+
+function shouldRetryHubStatus(statusCode) {
+  return Number.isInteger(statusCode) && statusCode >= 500;
 }
 
 // In Kubernetes, secrets are mounted as individual files in a directory
@@ -329,7 +331,6 @@ if (process.env.NODE_ENV !== 'test') {
       try {
         await waitfordb('http://database:8002');
         console.log('Database is up');
-        await logWebhookCallbackSelfCheck();
         await syncEventSubSubscriptions();
       } catch (e) {
         console.error('Post-listen startup task failed:', e.message);
@@ -373,38 +374,69 @@ async function setupYouTubeNotification(source_id) {
     lease_seconds,
   });
 
-  await new Promise((resolve, reject) => {
-    const req = https.request(reqOptions, (res) => {
-      let data = '';
-      res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => {
-        const durationMs = Date.now() - startedAt;
-        console.log(`[WebSub:${traceId}] subscribe response`, {
-          source_id,
-          statusCode: res.statusCode,
-          durationMs,
-          bodyPreview: previewHubBody(data),
+  for (let attempt = 1; attempt <= HUB_SUBSCRIBE_MAX_ATTEMPTS; attempt++) {
+    const response = await new Promise((resolve, reject) => {
+      const req = https.request(reqOptions, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            body: data,
+          });
         });
-
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(undefined);
-        } else {
-          reject(new Error(`Hub responded ${res.statusCode}: ${data}`));
-        }
       });
-    });
-    req.on('error', (err) => {
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    }).catch((err) => {
       const durationMs = Date.now() - startedAt;
       console.error(`[WebSub:${traceId}] subscribe request error`, {
         source_id,
+        attempt,
         durationMs,
         message: err.message,
       });
-      reject(err);
+      throw err;
     });
-    req.write(body);
-    req.end();
-  });
+
+    const durationMs = Date.now() - startedAt;
+    const statusCode = response.statusCode;
+    const responseBody = response.body;
+    console.log(`[WebSub:${traceId}] subscribe response`, {
+      source_id,
+      attempt,
+      statusCode,
+      durationMs,
+      bodyPreview: previewHubBody(responseBody),
+    });
+
+    if (statusCode && statusCode >= 200 && statusCode < 300) {
+      return;
+    }
+
+    const canRetry = attempt < HUB_SUBSCRIBE_MAX_ATTEMPTS && shouldRetryHubStatus(statusCode);
+    if (!canRetry) {
+      throw new Error(`Hub responded ${statusCode}: ${responseBody}`);
+    }
+
+    const retryAfterRaw = response.headers?.['retry-after'];
+    const retryAfterValue = Array.isArray(retryAfterRaw) ? retryAfterRaw[0] : retryAfterRaw;
+    const retryAfterMs = parseRetryAfterMs(retryAfterValue);
+    const delayMs = retryAfterMs ?? backoffWithJitterMs(attempt);
+
+    console.warn(`[WebSub:${traceId}] subscribe transient failure, retrying`, {
+      source_id,
+      attempt,
+      nextAttempt: attempt + 1,
+      statusCode,
+      delayMs,
+      retryAfter: retryAfterValue || null,
+    });
+
+    await sleep(delayMs);
+  }
 }
 
 async function unsubscribeYouTubeNotification(source_id) {
