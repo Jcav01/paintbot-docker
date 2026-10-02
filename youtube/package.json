@@ -20,8 +20,8 @@
   "author": "Jcav",
   "license": "ISC",
   "dependencies": {
-    "@googleapis/youtube": "^35.0.0",
-    "@rowanmanning/feed-parser": "^2.1.4",
+    "@googleapis/youtube": "^39.0.1",
+    "@rowanmanning/feed-parser": "^2.1.5",
     "express": "^5.2.1",
     "express-xml-bodyparser": "^0.4.1"
   }
