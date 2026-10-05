@@ -201,26 +201,12 @@ app
     const topic = req.query['hub.topic'];
     const lease = req.query['hub.lease_seconds'];
 
-    console.log('YouTube WebSub verification callback:', {
-      mode,
-      topic,
-      lease,
-      hasChallenge: Boolean(challenge),
-      userAgent: req.get('user-agent') || null,
-    });
-
     if (challenge) {
       return res.status(200).send(challenge);
     }
     return res.sendStatus(400);
   })
   .post(xmlbodyparser(), async (req, res) => {
-    console.log('YouTube WebSub notification callback:', {
-      contentType: req.get('content-type') || null,
-      contentLength: req.get('content-length') || null,
-      userAgent: req.get('user-agent') || null,
-    });
-
     const entry = req.body?.feed?.entry?.[0];
     const videoId = entry?.['yt:videoid']?.[0] ?? entry?.['yt:videoId']?.[0];
     const channelId = entry?.['yt:channelid']?.[0];
@@ -366,14 +352,6 @@ async function setupYouTubeNotification(source_id) {
     },
   };
 
-  console.log(`[WebSub:${traceId}] subscribe request started`, {
-    source_id,
-    callback: hub['hub.callback'],
-    topic: hub['hub.topic'],
-    verify: hub['hub.verify'],
-    lease_seconds,
-  });
-
   for (let attempt = 1; attempt <= HUB_SUBSCRIBE_MAX_ATTEMPTS; attempt++) {
     const response = await new Promise((resolve, reject) => {
       const req = https.request(reqOptions, (res) => {
@@ -401,16 +379,8 @@ async function setupYouTubeNotification(source_id) {
       throw err;
     });
 
-    const durationMs = Date.now() - startedAt;
     const statusCode = response.statusCode;
     const responseBody = response.body;
-    console.log(`[WebSub:${traceId}] subscribe response`, {
-      source_id,
-      attempt,
-      statusCode,
-      durationMs,
-      bodyPreview: previewHubBody(responseBody),
-    });
 
     if (statusCode && statusCode >= 200 && statusCode < 300) {
       return;
@@ -462,25 +432,12 @@ async function unsubscribeYouTubeNotification(source_id) {
     },
   };
 
-  console.log(`[WebSub:${traceId}] unsubscribe request started`, {
-    source_id,
-    callback: hub['hub.callback'],
-    topic: hub['hub.topic'],
-    verify: hub['hub.verify'],
-  });
-
   await new Promise((resolve, reject) => {
     const req = https.request(reqOptions, (res) => {
       let data = '';
       res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
         const durationMs = Date.now() - startedAt;
-        console.log(`[WebSub:${traceId}] unsubscribe response`, {
-          source_id,
-          statusCode: res.statusCode,
-          durationMs,
-          bodyPreview: previewHubBody(data),
-        });
 
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve(undefined);
