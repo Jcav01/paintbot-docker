@@ -12,12 +12,12 @@
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^5.0.2",
-    "eslint": "^10.11.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.12.0",
-    "prettier": "^3.9.9",
-    "supertest": "^7.3.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "supertest": "^7.3.1",
     "vitest": "^5.0.2"
   },
   "scripts": {
