@@ -22,7 +22,7 @@
   "dependencies": {
     "@googleapis/youtube": "^39.0.1",
     "@rowanmanning/feed-parser": "^2.1.5",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "express-xml-bodyparser": "^0.4.1"
   }
 }
